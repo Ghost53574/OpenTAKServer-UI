@@ -1,12 +1,24 @@
 import React from 'react';
+import { Center, Loader } from '@mantine/core';
 import { Navigate, Outlet } from 'react-router';
+import { useAuth } from './auth/AuthContext';
 
-const PrivateRoute = () => {
-  const loggedIn = JSON.parse(String(localStorage.getItem('loggedIn'))) === true;
+const PrivateRoute = ({ administratorOnly = false }: { administratorOnly?: boolean }) => {
+  const { status, isAdministrator } = useAuth();
 
-  // If authorized, return an outlet that will render child elements
-  // If not, return element that will navigate to login page
-  return loggedIn ? <Outlet /> : <Navigate to="/login" />;
+  if (status === 'loading') {
+    return (
+      <Center mih="50vh">
+        <Loader aria-label="Checking your session" />
+      </Center>
+    );
+  }
+
+  if (status !== 'authenticated') {
+    return <Navigate to="/login" replace />;
+  }
+
+  return administratorOnly && !isAdministrator ? <Navigate to="/dashboard" replace /> : <Outlet />;
 };
 
 export default PrivateRoute;

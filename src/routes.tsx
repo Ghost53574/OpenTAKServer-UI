@@ -17,39 +17,71 @@ const VideoRecordings = React.lazy(() => import('./pages/VideoRecordings.tsx').t
 const Meshtastic = React.lazy(() => import('./pages/Meshtastic.tsx').then());
 const PluginUpdates = React.lazy(() => import('./pages/PluginUpdates.tsx').then());
 const DeviceProfiles = React.lazy(() => import('./pages/DeviceProfiles.tsx').then());
-const Missions = React.lazy(() => import('./pages/Missions.tsx').then())
-const Groups = React.lazy(() => import('./pages/Groups.tsx').then())
+const Missions = React.lazy(() => import('./pages/Missions.tsx').then());
+const Groups = React.lazy(() => import('./pages/Groups.tsx').then());
 const EUDStats = React.lazy(() => import('./pages/EUDStats.tsx').then());
 const Plugin = React.lazy(() => import('./pages/Plugin.tsx').then());
 const ServerPluginManager = React.lazy(() => import('./pages/ServerPluginManager.tsx').then());
 const LinkTAKGovAccount = React.lazy(() => import('./pages/LinkTakGov.tsx').then());
 const UserProfile = React.lazy(() => import('./pages/UserProfile.tsx').then());
+const CoTActivity = React.lazy(() => import('./pages/CoTActivity.tsx').then());
+const Certificates = React.lazy(() => import('./pages/Certificates.tsx').then());
 
-const routes = [
+interface RouteConfig {
+  path: string;
+  exact?: boolean;
+  name: string;
+  element: React.LazyExoticComponent<React.ComponentType>;
+  administratorOnly?: boolean;
+}
+
+const routes: RouteConfig[] = [
   { path: '/', exact: true, name: 'Home', element: Dashboard },
   { path: '/login', name: 'Login', element: Login },
   { path: '/404', name: '404', element: Error404 },
   { path: '/dashboard', name: 'Dashboard', element: Dashboard },
   { path: '/euds', name: 'EUDs', element: EUDs },
+  { path: '/activity', name: 'CoT Activity', element: CoTActivity },
   { path: '/map', name: 'Map', element: Map },
   { path: '/alerts', name: 'Alerts', element: Alerts },
   { path: '/casevac', name: 'CasEvac', element: Casevac },
   { path: '/data_packages', name: 'DataPackages', element: DataPackages },
+  { path: '/certificates', name: 'Certificates', element: Certificates },
   { path: '/video_streams', name: 'VideoStreams', element: VideoStreams },
-  { path: '/users', name: 'Users', element: Users },
+  { path: '/users', name: 'Users', element: Users, administratorOnly: true },
   { path: '/tfa_setup', name: '2FA Setup', element: TFASetup },
   { path: '/reset', name: 'Password Reset', element: PasswordReset },
-  { path: '/jobs', name: 'Scheduled Jobs', element: ScheduledJobs },
+  { path: '/jobs', name: 'Scheduled Jobs', element: ScheduledJobs, administratorOnly: true },
   { path: '/video_recordings', name: 'Video Recordings', element: VideoRecordings },
-  { path: '/meshtastic', name: 'Meshtastic', element: Meshtastic },
-  { path: '/plugin_updates', name: 'PluginUpdates', element: PluginUpdates },
-  { path: '/device_profiles', name: 'DeviceProfiles', element: DeviceProfiles },
+  { path: '/meshtastic', name: 'Meshtastic', element: Meshtastic, administratorOnly: true },
+  {
+    path: '/plugin_updates',
+    name: 'PluginUpdates',
+    element: PluginUpdates,
+    administratorOnly: true,
+  },
+  {
+    path: '/device_profiles',
+    name: 'DeviceProfiles',
+    element: DeviceProfiles,
+    administratorOnly: true,
+  },
   { path: '/missions', name: 'Missions', element: Missions },
-  { path: '/groups', name: 'Groups', element: Groups },
+  { path: '/groups', name: 'Groups', element: Groups, administratorOnly: true },
   { path: '/eud_stats', name: 'EUDStats', element: EUDStats },
-  { path: '/plugin', name: 'Plugins', element: Plugin },
-  { path: '/server_plugin_manager', name:'Server Plugin Manager', element: ServerPluginManager },
-  { path: '/link_account', name: 'Link TAK.gov Account', element: LinkTAKGovAccount },
+  { path: '/plugin', name: 'Plugins', element: Plugin, administratorOnly: true },
+  {
+    path: '/server_plugin_manager',
+    name: 'Server Plugin Manager',
+    element: ServerPluginManager,
+    administratorOnly: true,
+  },
+  {
+    path: '/link_account',
+    name: 'Link TAK.gov Account',
+    element: LinkTAKGovAccount,
+    administratorOnly: true,
+  },
   { path: '/profile/', name: 'User Profile', element: UserProfile },
   { path: '/profile/:username', name: 'User Profile', element: UserProfile },
 ];
