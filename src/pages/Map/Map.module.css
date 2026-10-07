@@ -1,14 +1,14 @@
 .transparent {
-    background: none;
-    border: none;
+  background: none;
+  border: none;
 }
 
 .connected {
-    filter: brightness(100%);
-    fill-opacity: 100%;
+  filter: brightness(100%);
+  fill-opacity: 100%;
 }
 
 .disconnected {
-    filter: brightness(75%);
-    fill-opacity: 50%;
+  filter: brightness(75%);
+  fill-opacity: 50%;
 }

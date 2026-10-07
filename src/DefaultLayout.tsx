@@ -1,153 +1,236 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-    Badge,
-    AppShell,
-    Burger,
-    Group,
-    Image,
-    Menu,
-    rem,
-    useComputedColorScheme,
+  ActionIcon,
+  AppShell,
+  Badge,
+  Box,
+  Burger,
+  Group,
+  Image,
+  Loader,
+  Menu,
+  rem,
+  Text,
+  Tooltip,
+  useComputedColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-    IconCheck,
-    IconLogout,
-    IconAlertTriangle,
-    IconUser,
-} from '@tabler/icons-react';
-import { Navigate, useNavigate } from 'react-router';
 import { notifications } from '@mantine/notifications';
-import Logo from './images/ots-logo.png';
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconChevronDown,
+  IconLogout,
+  IconPlugConnected,
+  IconPlugConnectedX,
+  IconUser,
+} from '@tabler/icons-react';
+import { Navigate, useLocation, useNavigate } from 'react-router';
+import { useTranslation } from 'react-i18next';
+
+import { useAuth } from './auth/AuthContext';
 import { AppContent } from './components/AppContent';
-import axios from './axios_config';
-import { apiRoutes } from './apiRoutes';
 import Navbar from './components/Navbar/Navbar';
+import Logo from './images/ots-logo.png';
+import { routeDetails } from './navigation';
 import { socket } from './socketio';
-import {t} from "i18next";
 
 export function DefaultLayout() {
-    const loggedIn = JSON.parse(String(localStorage.getItem('loggedIn'))) === true;
-    if (!loggedIn) {
-        return <Navigate to="/login" />;
+  const { t } = useTranslation();
+  const { status, user, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [mobileOpened, { close: closeMobile, toggle: toggleMobile }] = useDisclosure();
+  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
+  const [socketConnected, setSocketConnected] = useState(socket.connected);
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const page = routeDetails(location.pathname);
+
+  useEffect(() => {
+    function onConnect() {
+      setSocketConnected(true);
     }
 
-    const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
-    const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
-    const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+    function onDisconnect() {
+      setSocketConnected(false);
+    }
 
-    const navigate = useNavigate();
+    function onAlert(alert: { alert_type: string; callsign: string; cancel_time: string | null }) {
+      const canceled = alert.cancel_time !== null;
+      const message = `${alert.alert_type} from ${alert.callsign}${canceled ? ' canceled' : ''}`;
 
-    const [socketConnected, setSocketConnected] = useState(false);
+      if (!canceled) {
+        const alertSound = new Audio('/alert.mp3');
+        void alertSound.play().catch(() => undefined);
+      }
 
-    useEffect(() => {
-        function onConnect() {
-            setSocketConnected(true);
-        }
+      notifications.show({
+        title: t('Alert'),
+        message,
+        color: canceled ? 'green' : 'red',
+        icon: canceled ? (
+          <IconCheck style={{ width: rem(20), height: rem(20) }} />
+        ) : (
+          <IconAlertTriangle style={{ width: rem(20), height: rem(20) }} />
+        ),
+      });
+    }
 
-        function onDisconnect() {
-            setSocketConnected(false);
-        }
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('alert', onAlert);
+    socket.connect();
 
-        function onAlert(alert:any) {
-            let message = `${alert.alert_type} from ${alert.callsign}`;
-            let color = 'red';
-            let icon = <IconAlertTriangle style={{ width: rem(20), height: rem(20) }} />;
-            const alert_sound = new Audio('/alert.mp3');
-            alert_sound.play();
-
-            if (alert.cancel_time !== null) {
-                message = `${alert.alert_type} from ${alert.callsign} canceled`;
-                color = 'green';
-                icon = <IconCheck style={{ width: rem(20), height: rem(20) }} />;
-            }
-
-            notifications.show({
-                title: t('Alert'),
-                message,
-                color,
-                icon,
-            });
-        }
-
-        socket.on('connect', onConnect);
-        socket.on('disconnect', onDisconnect);
-        socket.on('alert', onAlert);
-
-        if (!socketConnected) {
-            socket.connect();
-        }
-
-        return () => {
-            socket.off('connect', onConnect);
-            socket.off('disconnect', onDisconnect);
-            socket.off('alert', onAlert);
-        };
-    }, []);
-
-    const logout = () => {
-        axios.post(
-            apiRoutes.logout
-        ).then(r => {
-            if (r.status === 200) {
-                localStorage.clear();
-                navigate('/');
-            }
-        });
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('alert', onAlert);
+      socket.disconnect();
     };
+  }, [t]);
 
+  if (status === 'loading') {
     return (
-        <AppShell
-          header={{ height: 60 }}
-          navbar={{
-                width: 300,
-                breakpoint: 'sm',
-                collapsed: { mobile: !mobileOpened, desktop: !desktopOpened },
-            }}
-          padding="md"
-        >
-            <AppShell.Header pb={0} bg={computedColorScheme === 'light' ? '#2a2d43' : 'dark.8'}>
-                <Group justify="space-between" pr={5} h="100%">
-                    <Group h="100%" w={300}>
-                        <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" pl={5} color="white" />
-                        <Burger opened={desktopOpened} onClick={toggleDesktop} visibleFrom="sm" size="sm" color="white" />
-                        <Image src={Logo} h={50} w="auto" />
-                    </Group>
-                    <Group>
-                        <Menu shadow="md" width={200} trigger="click-hover">
-                            <Menu.Target>
-                                <Badge autoContrast variant="light" size="md">
-                                    {localStorage.getItem('username')}
-                                </Badge>
-                            </Menu.Target>
-
-                            <Menu.Dropdown>
-                                <Menu.Label>OpenTAKServer</Menu.Label>
-                                <Menu.Divider />
-                                <Menu.Item
-                                    leftSection={<IconUser size={14} />} onClick={() => {navigate('/profile')}}>
-                                    {t("Profile")}
-                                </Menu.Item>
-                                <Menu.Item
-                                  disabled={localStorage.getItem('loggedIn') !== 'true'}
-                                  leftSection={<IconLogout style={{ width: rem(14), height: rem(14) }} />}
-                                  onClick={() => {
-                                        logout();
-                                    }}
-                                >
-                                    {t("Log Out")}
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
-                    </Group>
-                </Group>
-            </AppShell.Header>
-            <AppShell.Navbar pl="md" pr="md" bg={computedColorScheme === 'light' ? '#f1f4f8' : 'dark.8'}>
-                <Navbar />
-            </AppShell.Navbar>
-            <AppShell.Main bg={computedColorScheme === 'light' ? 'gray.1' : 'dark.7'}><AppContent /></AppShell.Main>
-        </AppShell>
+      <Box h="100vh" display="grid" style={{ placeItems: 'center' }}>
+        <Loader aria-label="Checking your session" />
+      </Box>
     );
+  }
+
+  if (status === 'anonymous' || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
+  return (
+    <AppShell
+      header={{ height: 64 }}
+      navbar={{
+        width: 288,
+        breakpoint: 'sm',
+        collapsed: { mobile: !mobileOpened, desktop: !desktopOpened },
+      }}
+      padding={{ base: 'sm', sm: 'lg' }}
+    >
+      <AppShell.Header
+        bg={computedColorScheme === 'light' ? '#202438' : 'dark.9'}
+        c="white"
+        style={{ borderColor: 'transparent' }}
+      >
+        <Group justify="space-between" h="100%" px={{ base: 'sm', sm: 'md' }} wrap="nowrap">
+          <Group h="100%" gap="sm" wrap="nowrap">
+            <Burger
+              opened={mobileOpened}
+              onClick={toggleMobile}
+              hiddenFrom="sm"
+              size="sm"
+              color="white"
+              aria-label={mobileOpened ? 'Close navigation' : 'Open navigation'}
+            />
+            <Burger
+              opened={desktopOpened}
+              onClick={toggleDesktop}
+              visibleFrom="sm"
+              size="sm"
+              color="white"
+              aria-label={desktopOpened ? 'Collapse navigation' : 'Expand navigation'}
+            />
+            <Image src={Logo} h={44} w="auto" alt="OpenTAKServer" />
+            <Box visibleFrom="xs">
+              <Text fw={700} lh={1.1}>
+                {page ? t(page.label) : 'OpenTAKServer'}
+              </Text>
+              <Text size="xs" c="gray.4" lineClamp={1}>
+                {page ? t(page.description) : 'TAK operations console'}
+              </Text>
+            </Box>
+          </Group>
+
+          <Group gap="sm" wrap="nowrap">
+            <Tooltip
+              label={socketConnected ? 'Live updates connected' : 'Live updates disconnected'}
+            >
+              <Badge
+                visibleFrom="xs"
+                color={socketConnected ? 'teal' : 'orange'}
+                variant="light"
+                leftSection={
+                  socketConnected ? (
+                    <IconPlugConnected size={13} />
+                  ) : (
+                    <IconPlugConnectedX size={13} />
+                  )
+                }
+              >
+                {socketConnected ? 'Live' : 'Offline'}
+              </Badge>
+            </Tooltip>
+            <Menu shadow="lg" width={220} position="bottom-end">
+              <Menu.Target>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="lg"
+                  aria-label={`Open account menu for ${user.username}`}
+                >
+                  <Group gap={4} wrap="nowrap">
+                    <IconUser size={18} />
+                    <IconChevronDown size={13} />
+                  </Group>
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>
+                  <Text size="sm" fw={700}>
+                    {user.username}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {user.email ?? 'Local account'}
+                  </Text>
+                </Menu.Label>
+                <Menu.Divider />
+                <Menu.Item
+                  leftSection={<IconUser size={16} />}
+                  onClick={() => navigate('/profile')}
+                >
+                  {t('Profile')}
+                </Menu.Item>
+                <Menu.Item
+                  color="red"
+                  leftSection={<IconLogout size={16} />}
+                  onClick={() => void handleLogout()}
+                >
+                  {t('Log Out')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+        </Group>
+      </AppShell.Header>
+
+      <AppShell.Navbar
+        bg={computedColorScheme === 'light' ? 'gray.0' : 'dark.8'}
+        style={{
+          borderColor:
+            computedColorScheme === 'light'
+              ? 'var(--mantine-color-gray-3)'
+              : 'var(--mantine-color-dark-5)',
+        }}
+      >
+        <Navbar onNavigate={closeMobile} />
+      </AppShell.Navbar>
+
+      <AppShell.Main bg={computedColorScheme === 'light' ? 'gray.1' : 'dark.7'}>
+        <Box id="main-content" component="main" tabIndex={-1} mih="calc(100vh - 64px)">
+          <AppContent />
+        </Box>
+      </AppShell.Main>
+    </AppShell>
+  );
 }
 
 export default DefaultLayout;

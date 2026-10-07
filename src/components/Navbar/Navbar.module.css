@@ -1,69 +1,56 @@
-.navbar {
-    height: rem(700px);
-    width: rem(300px);
-    padding: var(--mantine-spacing-md);
-    display: flex;
-    flex-direction: column;
-    border-right: rem(1px) solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+.scrollArea {
+  flex: 1;
+  min-height: 0;
 }
 
-.navbarMain {
-    flex: 1;
+.sectionLabel {
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding-inline: var(--mantine-spacing-xs);
+  text-transform: uppercase;
 }
 
-.header {
-    padding-bottom: var(--mantine-spacing-md);
-    margin-bottom: calc(var(--mantine-spacing-md) * 1.5);
-    border-bottom: rem(1px) solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+.link,
+.compactLink {
+  border-radius: var(--mantine-radius-md);
+  color: light-dark(var(--mantine-color-gray-8), var(--mantine-color-dark-0));
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+
+  @mixin hover {
+    background-color: light-dark(var(--mantine-color-blue-0), var(--mantine-color-dark-6));
+    color: light-dark(var(--mantine-color-blue-9), var(--mantine-color-blue-2));
+  }
+
+  &[data-active] {
+    background-color: light-dark(var(--mantine-color-blue-1), var(--mantine-color-blue-9));
+    color: light-dark(var(--mantine-color-blue-9), var(--mantine-color-white));
+    font-weight: 650;
+  }
 }
 
-.footer {
-    padding-top: var(--mantine-spacing-md);
-    margin-top: var(--mantine-spacing-md);
-    border-top: rem(1px) solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
-}
-
-.link {
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    font-size: var(--mantine-font-size-sm);
-    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-sm);
-    font-weight: 500;
-    transition: all .3s ease-out;
-
-    @mixin hover {
-        background-color: #2a2d43;
-        color: white;
-        transition: all .3s ease-out;
-
-        .linkIcon {
-            color: var(--mantine-color-white);
-            transition: all .3s ease-out;
-        }
-    }
-
-    &[data-active] {
-        &,
-        &:hover {
-            /*background-color: var(--mantine-color-blue-light);*/
-            background-color: #2a2d43;
-            color: var(--mantine-color-white);
-            transition: all .3s ease-in;
-
-            .linkIcon {
-                color: var(--mantine-color-white);
-                transition: all .3s ease-in;
-            }
-        }
-    }
+.link[data-active] {
+  box-shadow: inset 3px 0 0 var(--mantine-color-blue-6);
 }
 
 .linkIcon {
-    color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
-    margin-right: var(--mantine-spacing-sm);
-    width: rem(25px);
-    height: rem(25px);
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
+  height: rem(22px);
+  width: rem(22px);
+}
+
+.link[data-active] .linkIcon {
+  color: inherit;
+}
+
+.compactLink {
+  font-size: var(--mantine-font-size-sm);
+}
+
+.footer {
+  border-top: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
 }

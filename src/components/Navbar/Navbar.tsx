@@ -1,341 +1,437 @@
-import React, {ReactElement, useEffect, useState} from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-    IconAlertTriangle,
-    IconHeartbeat,
-    IconPackage,
-    IconVideo,
-    IconDeviceMobile,
-    IconDashboard,
-    IconPuzzle,
-    IconUsers,
-    IconMap,
-    IconLogout,
-    IconMoonStars,
-    Icon2fa,
-    IconCalendarDue,
-    IconMovie,
-    IconQrcode,
-    IconX,
-    IconCertificate,
-    IconHelp,
-    IconBook,
-    IconBrandDiscord,
-    IconBrandGithub,
-    IconRefresh,
-    IconSettings,
-    IconPlugConnected,
-    IconPlug,
-    IconCircleMinus,
-    IconUsersGroup, IconLink, IconUser
-} from '@tabler/icons-react';
-import {
-    NavLink,
-    ScrollArea,
-    Modal,
-    Center,
-    NumberInput,
-    Flex,
-    Button,
-    Paper,
-    Text,
-    Tooltip
+  Box,
+  Button,
+  Center,
+  Divider,
+  Flex,
+  Group,
+  Modal,
+  NavLink,
+  NumberInput,
+  Paper,
+  ScrollArea,
+  Stack,
+  Text,
+  TextInput,
+  Tooltip,
 } from '@mantine/core';
-import Logo from '../../images/ots-logo.png';
-import { formatISO, parseISO } from 'date-fns';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { DateTimePicker } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
+import {
+  Icon2fa,
+  IconBook,
+  IconBrandDiscord,
+  IconBrandGithub,
+  IconCircleMinus,
+  IconHelp,
+  IconMoonStars,
+  IconPlugConnected,
+  IconQrcode,
+  IconRefresh,
+  IconSearch,
+  IconUser,
+  IconX,
+} from '@tabler/icons-react';
+import { formatISO, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
+import { Link, useLocation } from 'react-router';
 import { QRCode } from 'react-qrcode-logo';
-import classes from './Navbar.module.css';
-import DarkModeSwitch from '../DarkModeSwitch';
-import axios from '../../axios_config';
+
 import { apiRoutes } from '../../apiRoutes';
-import MeshtasticLogo from './MeshtasticLogo';
-import {DateTimePicker} from "@mantine/dates";
-import {t} from "i18next";
+import { useAuth } from '../../auth/AuthContext';
+import axios, { apiErrorMessage } from '../../axios_config';
+import Logo from '../../images/ots-logo.png';
+import { navigationSections } from '../../navigation';
+import DarkModeSwitch from '../DarkModeSwitch';
+import classes from './Navbar.module.css';
 
-const navbarLinks = [
-    { link: '/dashboard', label: t('Dashboard'), icon: IconDashboard },
-    { link: '/map', label: t('Map'), icon: IconMap },
-    { link: '/euds', label: t('EUDs'), icon: IconDeviceMobile },
-    { link: '/alerts', label: t('Alerts'), icon: IconAlertTriangle },
-    { link: '/casevac', label: t('CasEvac'), icon: IconHeartbeat },
-    { link: '/data_packages', label: t('Data Packages'), icon: IconPackage },
-    { link: '/video_streams', label: t('Video Streams'), icon: IconVideo },
-    { link: '/video_recordings', label: t('Video Recordings'), icon: IconMovie },
-    { link: '/meshtastic', label: t('Meshtastic'), icon: MeshtasticLogo },
-    { link: '/missions', label: t('Missions'), icon: IconRefresh },
-];
-
-const adminLinks = [
-    { link: '/users', label: t('Users'), icon: IconUsers },
-    { link: '/groups', label: t('Groups'), icon: IconUsersGroup },
-    { link: '/jobs', label: t('Scheduled Jobs'), icon: IconCalendarDue },
-    { link: '/plugin_updates', label: t('Plugin Updates'), icon: IconPuzzle },
-    { link: '/device_profiles', label: t('Device Profiles'), icon: IconDeviceMobile },
-    { link: '/server_plugin_manager', label: t('Server Plugin Manager'), icon: IconPlugConnected },
-    { link: '/link_account', 'label': t('Link TAK.gov Account'), icon: IconLink}
-];
-
-interface ATAKQrCode {
-    qr_string: string;
-    sub: string;
-    iat: number;
-    iss: string;
-    aud: string;
-    max: number|string;
-    nbf: number|null;
-    exp: number|null;
-    disabled: boolean;
-    total_uses: number;
+interface NavbarProps {
+  onNavigate?: () => void;
 }
 
-export default function Navbar() {
-    const administrator = localStorage.getItem('administrator') === 'true';
-    const location = useLocation();
-    const [showItakQr, setShowItakQr] = useState(false);
-    const [itakQrString, setItakQrString] = useState('');
-    const [plugins, setPlugins] = useState([]);
-    const [pluginNavLinks, setPluginNavLinks] = useState<ReactElement[]>([]);
+interface ATAKQrCode {
+  qr_string: string;
+  sub: string;
+  iat: number;
+  iss: string;
+  aud: string;
+  max: number | string;
+  nbf: number | null;
+  exp: number | null;
+  disabled: boolean;
+  total_uses: number;
+}
 
-    const [showAtakQr, setShowAtakQr] = useState(false);
-    const [atakQR, setAtakQR] = useState<ATAKQrCode>({
-        qr_string: "",
-        sub: "",
-        iat: 0,
-        iss: "",
-        aud: "",
-        max: "",
-        nbf: null,
-        exp: null,
-        disabled: false,
-        total_uses: 0
-    });
+interface ServerPlugin {
+  distro: string;
+  name: string;
+}
 
-    useEffect(() => {
-        get_plugins();
-    }, []);
+const emptyAtakQr: ATAKQrCode = {
+  qr_string: '',
+  sub: '',
+  iat: 0,
+  iss: '',
+  aud: '',
+  max: '',
+  nbf: null,
+  exp: null,
+  disabled: false,
+  total_uses: 0,
+};
 
-    useEffect(() => {
-        generatePluginLinks();
-    }, [plugins]);
+function openExternal(url: string) {
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
 
-    const generatePluginLinks = () => {
-        if (plugins !== null) {
-            const links = plugins.map((plugin: any) => (
-                <NavLink
+export default function Navbar({ onNavigate }: NavbarProps) {
+  const { t } = useTranslation();
+  const { isAdministrator } = useAuth();
+  const location = useLocation();
+  const [query, setQuery] = useState('');
+  const [showItakQr, setShowItakQr] = useState(false);
+  const [itakQrString, setItakQrString] = useState('');
+  const [showAtakQr, setShowAtakQr] = useState(false);
+  const [atakQr, setAtakQr] = useState<ATAKQrCode>(emptyAtakQr);
+  const [plugins, setPlugins] = useState<ServerPlugin[]>([]);
+
+  useEffect(() => {
+    if (!isAdministrator) {
+      setPlugins([]);
+      return;
+    }
+
+    axios
+      .get(apiRoutes.plugins)
+      .then((response) => setPlugins(response.data.plugins ?? []))
+      .catch(() => setPlugins([]));
+  }, [isAdministrator]);
+
+  const visibleSections = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+
+    return navigationSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => {
+          if (item.administratorOnly && !isAdministrator) {
+            return false;
+          }
+
+          return (
+            !normalizedQuery ||
+            t(item.label).toLocaleLowerCase().includes(normalizedQuery) ||
+            t(item.description).toLocaleLowerCase().includes(normalizedQuery)
+          );
+        }),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [isAdministrator, query, t]);
+
+  const getItakQr = async () => {
+    try {
+      const response = await axios.get(apiRoutes.itakQrString);
+      setItakQrString(response.data);
+      setShowItakQr(true);
+    } catch (error) {
+      notifications.show({
+        title: t('Unable to create iTAK connection'),
+        message: apiErrorMessage(error, t('Failed to get QR code string')),
+        icon: <IconX />,
+        color: 'red',
+      });
+    }
+  };
+
+  const getAtakQr = async () => {
+    setShowAtakQr(true);
+    try {
+      const response = await axios.get<ATAKQrCode>(apiRoutes.atakQrString);
+      setAtakQr(response.data);
+    } catch {
+      setAtakQr(emptyAtakQr);
+    }
+  };
+
+  const generateAtakQr = async () => {
+    try {
+      const response = await axios.post<ATAKQrCode>(apiRoutes.atakQrString, atakQr);
+      setAtakQr(response.data);
+    } catch (error) {
+      notifications.show({
+        title: t('Failed to generate QR code'),
+        message: apiErrorMessage(error, t('The enrollment token could not be generated.')),
+        icon: <IconX />,
+        color: 'red',
+      });
+    }
+  };
+
+  const deleteAtakQr = async () => {
+    try {
+      await axios.delete(apiRoutes.atakQrString);
+      setAtakQr(emptyAtakQr);
+    } catch (error) {
+      notifications.show({
+        title: t('Failed to delete QR code'),
+        message: apiErrorMessage(error, t('The enrollment token could not be deleted.')),
+        icon: <IconX />,
+        color: 'red',
+      });
+    }
+  };
+
+  return (
+    <Stack h="100%" gap={0}>
+      <Box p="sm" pb={4}>
+        <TextInput
+          value={query}
+          onChange={(event) => setQuery(event.currentTarget.value)}
+          placeholder={t('Find a page')}
+          aria-label={t('Find a page')}
+          leftSection={<IconSearch size={16} />}
+          rightSection={
+            query ? (
+              <Button variant="subtle" size="compact-xs" onClick={() => setQuery('')}>
+                ×
+              </Button>
+            ) : null
+          }
+        />
+      </Box>
+
+      <ScrollArea className={classes.scrollArea} type="auto" scrollbarSize={6}>
+        <Stack gap="lg" p="sm">
+          {visibleSections.map((section) => (
+            <Box key={section.label}>
+              <Text className={classes.sectionLabel}>{t(section.label)}</Text>
+              <Stack gap={3} mt={6}>
+                {section.items.map((item) => (
+                  <NavLink
+                    className={classes.link}
+                    component={Link}
+                    key={item.path}
+                    active={location.pathname === item.path}
+                    to={item.path}
+                    label={t(item.label)}
+                    description={t(item.description)}
+                    leftSection={<item.icon className={classes.linkIcon} stroke={1.7} />}
+                    onClick={onNavigate}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          ))}
+
+          {isAdministrator && plugins.length > 0 ? (
+            <Box>
+              <Text className={classes.sectionLabel}>{t('Plugins')}</Text>
+              <Stack gap={3} mt={6}>
+                {plugins.map((plugin) => (
+                  <NavLink
                     className={classes.link}
                     component={Link}
                     key={plugin.distro}
-                    active={location.pathname + location.search === `/plugin?name=${plugin.distro}` || undefined}
+                    active={location.pathname + location.search === `/plugin?name=${plugin.distro}`}
                     to={`/plugin?name=${plugin.distro}`}
                     label={plugin.name}
-                    leftSection={<IconPlugConnected className={classes.linkIcon} stroke={1.5}/>}
-                    mt="md"
-                    onClick={() => {generatePluginLinks()}}
-                />
-            ))
-            setPluginNavLinks(links)
-        }
-    }
+                    leftSection={<IconPlugConnected className={classes.linkIcon} stroke={1.7} />}
+                    onClick={onNavigate}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          ) : null}
 
-    const links = navbarLinks.map((item) => (
+          {visibleSections.length === 0 ? (
+            <Text size="sm" c="dimmed" ta="center" py="xl">
+              {t('No pages match your search.')}
+            </Text>
+          ) : null}
+        </Stack>
+      </ScrollArea>
+
+      <Box className={classes.footer} p="sm">
         <NavLink
-          className={classes.link}
-          component={Link}
-          key={item.label}
-          active={location.pathname === item.link}
-          to={item.link}
-          label={item.label}
-          leftSection={<item.icon className={classes.linkIcon} stroke={1.5} />}
-          mt="md"
-        />
-    ));
-
-    const admin_links = adminLinks.map((item) => (
+          className={classes.compactLink}
+          label={t('Connect a TAK device')}
+          leftSection={<IconQrcode size={20} />}
+          childrenOffset={30}
+        >
+          <NavLink label={t('ATAK enrollment QR')} onClick={() => void getAtakQr()} />
+          <NavLink label={t('iTAK connection QR')} onClick={() => void getItakQr()} />
+          <NavLink
+            label={t('Download truststore')}
+            onClick={() => openExternal(apiRoutes.truststore)}
+          />
+        </NavLink>
         <NavLink
-          className={classes.link}
+          className={classes.compactLink}
           component={Link}
-          key={item.label}
-          active={location.pathname === item.link || undefined}
-          to={item.link}
-          label={t(item.label)}
-          leftSection={<item.icon className={classes.linkIcon} stroke={1.5} />}
-          mt="md"
+          to="/tfa_setup"
+          label={t('Two-factor authentication')}
+          leftSection={<Icon2fa size={20} />}
+          onClick={onNavigate}
         />
-    ));
+        <NavLink
+          className={classes.compactLink}
+          label={t('Appearance')}
+          leftSection={<IconMoonStars size={20} />}
+          rightSection={<DarkModeSwitch />}
+        />
+        <NavLink
+          className={classes.compactLink}
+          label={t('Help and support')}
+          leftSection={<IconHelp size={20} />}
+        >
+          <NavLink
+            label={t('Documentation')}
+            leftSection={<IconBook size={17} />}
+            onClick={() => openExternal('https://docs.opentakserver.io')}
+          />
+          <NavLink
+            label="Discord"
+            leftSection={<IconBrandDiscord size={17} />}
+            onClick={() => openExternal('https://discord.gg/6uaVHjtfXN')}
+          />
+          <NavLink
+            label="GitHub"
+            leftSection={<IconBrandGithub size={17} />}
+            onClick={() => openExternal('https://github.com/Ghost53574/OpenTAK')}
+          />
+        </NavLink>
+        <NavLink
+          className={classes.compactLink}
+          component={Link}
+          to="/profile"
+          label={t('Profile')}
+          leftSection={<IconUser size={20} />}
+          onClick={onNavigate}
+        />
+      </Box>
 
-    const navigate = useNavigate();
+      <Modal
+        opened={showItakQr}
+        onClose={() => setShowItakQr(false)}
+        title={t('iTAK Connection Details')}
+        centered
+      >
+        <Center>
+          <Paper p="md" shadow="xl" withBorder bg="white">
+            <QRCode
+              size={260}
+              value={itakQrString}
+              quietZone={10}
+              logoImage={Logo}
+              qrStyle="dots"
+              ecLevel="H"
+              eyeRadius={40}
+              logoWidth={72}
+              logoHeight={72}
+            />
+          </Paper>
+        </Center>
+      </Modal>
 
-    const logout = () => {
-        axios.post(
-            apiRoutes.logout
-        ).then(r => {
-            if (r.status === 200) {
-                localStorage.clear();
-                navigate('/');
-            }
-        });
-    };
+      <Modal
+        opened={showAtakQr}
+        onClose={() => setShowAtakQr(false)}
+        title={t('ATAK enrollment')}
+        centered
+        size="lg"
+      >
+        <Stack>
+          <Text size="sm" c="dimmed">
+            {t(
+              'Create a limited enrollment token. Anyone with this QR code can enroll until it expires or reaches its use limit.'
+            )}
+          </Text>
+          <DateTimePicker
+            onChange={(date) => {
+              if (date !== 'Invalid Date' && date !== null) {
+                setAtakQr({ ...atakQr, exp: Math.floor(parseISO(date).getTime() / 1000) });
+              }
+            }}
+            minDate={new Date()}
+            valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+            value={atakQr.exp !== null ? formatISO(new Date(atakQr.exp * 1000)) : null}
+            disabled={atakQr.qr_string !== ''}
+            label={t('Expiration date')}
+            clearable
+            firstDayOfWeek={0}
+            clearButtonProps={{ onClick: () => setAtakQr({ ...atakQr, exp: null }) }}
+            timePickerProps={{
+              withDropdown: true,
+              popoverProps: { withinPortal: false },
+              format: '24h',
+            }}
+          />
+          <NumberInput
+            hideControls
+            min={1}
+            value={atakQr.max}
+            disabled={atakQr.qr_string !== ''}
+            label={t('Maximum uses')}
+            onChange={(value) => setAtakQr({ ...atakQr, max: Number(value) || '' })}
+          />
+          {Number(atakQr.max) > 0 && atakQr.qr_string !== '' ? (
+            <NumberInput value={atakQr.total_uses} disabled label={t('Uses so far')} />
+          ) : null}
 
-    const itak_qr_string = () => {
-        axios.get(apiRoutes.itakQrString).then(r => {
-            if (r.status === 200) {
-                setItakQrString(r.data);
-                setShowItakQr(true);
-            }
-        }).catch(err => {
-            console.log(err);
-            notifications.show({
-                message: 'Failed to get QR code string',
-                icon: <IconX />,
-                color: 'red',
-            });
-        });
-    };
+          <Group justify="center">
+            <Button
+              onClick={() => void generateAtakQr()}
+              disabled={atakQr.qr_string !== ''}
+              leftSection={<IconRefresh size={16} />}
+            >
+              {t('Generate')}
+            </Button>
+            <Button
+              variant="light"
+              color="red"
+              onClick={() => void deleteAtakQr()}
+              disabled={atakQr.qr_string === ''}
+              leftSection={<IconCircleMinus size={16} />}
+            >
+              {t('Revoke')}
+            </Button>
+          </Group>
 
-    const get_plugins = () => {
-        axios.get(apiRoutes.plugins).then(r => {
-            if (r.status === 200) {
-                setPlugins(r.data.plugins)
-            }
-        })
-    }
-
-    function getAtakQr() {
-        axios.get<ATAKQrCode>(apiRoutes.atakQrString, {}).then(r => {
-            if (r.status === 200) {
-                setAtakQR(r.data)
-                setShowAtakQr(true);
-            }
-        }).catch(err => {
-            console.log(err);
-            setShowAtakQr(true)
-        })
-    }
-
-    function generateAtakQr() {
-        axios.post<ATAKQrCode>(apiRoutes.atakQrString, atakQR).then(r => {
-            if (r.status === 200) {
-                setAtakQR(r.data);
-            }
-        }).catch(err => {
-            console.log(err);
-            notifications.show({
-                title: 'Failed to generate QR code',
-                message: err.response.data.error,
-                icon: <IconX />,
-                color: 'red',
-            });
-        })
-    }
-
-    function deleteAtakQr() {
-        axios.delete(apiRoutes.atakQrString).then(r => {
-            if (r.status === 200) {
-                setAtakQR({
-                    qr_string: "",
-                    sub: "",
-                    iat: 0,
-                    iss: "",
-                    aud: "",
-                    max: "",
-                    nbf: null,
-                    exp: null,
-                    disabled: false,
-                    total_uses: 0
-                });
-            }
-        }).catch(err => {
-            console.log(err);
-            notifications.show({
-                title: 'Failed to delete QR code',
-                message: err.response.data.error,
-                icon: <IconX />,
-                color: 'red',
-            });
-        })
-    }
-
-    return (
-        <ScrollArea type="never">
-            <div>
-                {links}
-            </div>
-            {administrator ?
-                <div className={classes.footer}>
-                    <NavLink className={classes.link} key="admin" leftSection={<IconSettings className={classes.linkIcon} stroke={1.5} />} label={t("Admin")} >
-                        {admin_links}
-                    </NavLink>
-                    <NavLink className={classes.link} key="plugins" leftSection={<IconPlug className={classes.linkIcon} stroke={1.5} />} label={t("Plugins")} >
-                        {pluginNavLinks}
-                    </NavLink>
-                </div> : ''}
-            <div className={classes.footer}>
-                <NavLink className={classes.link} key="downloadTruststore" onClick={() => window.open(apiRoutes.truststore, "_blank")} leftSection={<IconCertificate className={classes.linkIcon} stroke={1.5} />} label={t("Download Truststore")} />
-                <NavLink className={classes.link} key="atakQrCode" onClick={() => getAtakQr()} leftSection={<IconQrcode className={classes.linkIcon} stroke={1.5} />} label={t("ATAK QR Code")} />
-                <NavLink className={classes.link} key="itakQrCode" onClick={() => itak_qr_string()} leftSection={<IconQrcode className={classes.linkIcon} stroke={1.5} />} label={t("iTAK QR Code")} />
-                <NavLink className={classes.link} key="2faSettings" component={Link} to="/tfa_setup" leftSection={<Icon2fa className={classes.linkIcon} stroke={1.5} />} label={t("Setup 2FA")} />
-                <NavLink className={classes.link} key="darkModeSwitch" leftSection={<IconMoonStars className={classes.linkIcon} stroke={1.5} />} rightSection={<DarkModeSwitch />} label={t("Dark Mode")} />
-                <NavLink className={classes.link} key="support" leftSection={<IconHelp className={classes.linkIcon} stroke={1.5} />} label={t("Support")} >
-                    <NavLink className={classes.link} key="docs" onClick={() => window.open("https://docs.opentakserver.io", "_blank")} leftSection={<IconBook className={classes.linkIcon} stroke={1.5} />} label={t("Documentation")} />
-                    <NavLink className={classes.link} key="discord" onClick={() => window.open("https://discord.gg/6uaVHjtfXN", "_blank")} leftSection={<IconBrandDiscord className={classes.linkIcon} stroke={1.5} />} label={t("Discord")} />
-                    <NavLink className={classes.link} key="github" onClick={() => window.open("https://github.com/brian7704/OpenTAKServer", "_blank")} leftSection={<IconBrandGithub className={classes.linkIcon} stroke={1.5} />} label={t("Github")} />
-                </NavLink>
-                <NavLink component={Link} to="/profile" className={classes.link} key="profile" leftSection={<IconUser className={classes.linkIcon} stroke={1.5} />} label={t("Profile")} />
-                <NavLink className={classes.link} key="logout" leftSection={<IconLogout className={classes.linkIcon} stroke={1.5} />} label={t("Log Out")} onClick={() => logout()} />
-            </div>
-            <Modal opened={showItakQr} onClose={() => setShowItakQr(false)} p="md" title={t("iTAK Connection Details")}>
-                <Center>
-                    <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode size={350} value={itakQrString} quietZone={10} logoImage={Logo} qrStyle="dots" ecLevel="H" eyeRadius={50} logoWidth={100} logoHeight={100} />
-                    </Paper>
-                </Center>
-            </Modal>
-            <Modal opened={showAtakQr} onClose={() => setShowAtakQr(false)} title={t("ATAK QR Code")}>
-                <DateTimePicker onChange={(date) => {
-                    if (date !== "Invalid Date" && date !== null) {
-                        setAtakQR({...atakQR, exp: Math.floor(parseISO(date).getTime() / 1000)});
-                    }}}
-                    minDate={new Date()}
-                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                    value={atakQR.exp !== null ? formatISO(new Date(atakQR.exp * 1000)) : null}
-                    disabled={atakQR?.qr_string !== ""}
-                    label={t("Expiration Date")}
-                    clearable
-                    firstDayOfWeek={0}
-                    clearButtonProps={{
-                        onClick: () => {
-                            setAtakQR({...atakQR, exp: null})
-                        }
-                    }} timePickerProps={{
-                        withDropdown: true,
-                        popoverProps: { withinPortal: false },
-                        format: '24h',
-                    }} />
-                <NumberInput hideControls min={1} value={atakQR.max} disabled={atakQR.qr_string !== ''} label={t("Max Uses")} onChange={(value) => {
-                    const max = `${value}`
-                    setAtakQR({...atakQR, max: parseInt(max, 10)})
-                }} />
-
-                <NumberInput display={Number(atakQR.max) > 0 && atakQR.qr_string !== '' ? "block" : "none"} min={0} value={atakQR.total_uses} disabled label={t("Total Uses")} onChange={(value) => {
-                    const max = `${value}`
-                    setAtakQR({...atakQR, max: parseInt(max, 10)})
-                }} />
-
-                <Center>
-                    <Button mt="md" mr="md" mb="md" onClick={() => generateAtakQr()} disabled={atakQR.qr_string !== ''} leftSection={<IconRefresh size={14} />}>{t("Generate")}</Button>
-                    <Button mt="md" mr="md" mb="md" onClick={() => deleteAtakQr()} disabled={atakQR.qr_string === ''} leftSection={<IconCircleMinus size={14} />}>{t("Delete")}</Button>
-                </Center>
-                <Flex direction="column" gap="md" align="center" display={atakQR.qr_string === '' ? "none" : "flex"}>
-                    <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode size={350} value={atakQR.qr_string} quietZone={10} logoImage={Logo} eyeRadius={50} ecLevel="L" qrStyle="dots" logoWidth={100} logoHeight={100} />
-                    </Paper>
-                    <Tooltip label={t("Tap here if you're reading this on the EUD you want to connect to OpenTAKServer")}>
-                        <Button component="a" href={atakQR.qr_string}>{t("Open ATAK")}</Button>
-                    </Tooltip>
-                    <Text ta="center" fw={700}>{t("Remember to treat this QR code like a password and don't share it with anyone.")}</Text>
-                </Flex>
-            </Modal>
-        </ScrollArea>
-    );
+          {atakQr.qr_string ? (
+            <>
+              <Divider />
+              <Flex direction="column" gap="md" align="center">
+                <Paper p="md" shadow="sm" withBorder bg="white">
+                  <QRCode
+                    size={260}
+                    value={atakQr.qr_string}
+                    quietZone={10}
+                    logoImage={Logo}
+                    eyeRadius={40}
+                    ecLevel="L"
+                    qrStyle="dots"
+                    logoWidth={72}
+                    logoHeight={72}
+                  />
+                </Paper>
+                <Tooltip label={t("Use this only on the Android device you're enrolling")}>
+                  <Button
+                    component="a"
+                    href={atakQr.qr_string}
+                    leftSection={<IconQrcode size={16} />}
+                  >
+                    {t('Open in ATAK')}
+                  </Button>
+                </Tooltip>
+                <Text ta="center" fw={600} size="sm">
+                  {t('Treat this QR code like a password. Revoke it when enrollment is complete.')}
+                </Text>
+              </Flex>
+            </>
+          ) : null}
+        </Stack>
+      </Modal>
+    </Stack>
+  );
 }

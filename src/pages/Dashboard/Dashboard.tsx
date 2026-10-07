@@ -1,198 +1,293 @@
-import React, { useEffect, useState } from 'react';
-import { notifications } from '@mantine/notifications';
-import {Text, Center, Title, Divider, Paper, Flex, Switch, Space, ScrollArea} from '@mantine/core';
-import { IconCheck, IconX } from '@tabler/icons-react';
-import { DonutChart } from '@mantine/charts';
-import { parseISO, intervalToDuration, formatDuration } from 'date-fns';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Anchor,
+  Badge,
+  Button,
+  Card,
+  Group,
+  Paper,
+  Progress,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
+  Title,
+} from '@mantine/core';
+import {
+  IconActivityHeartbeat,
+  IconCertificate,
+  IconCpu,
+  IconDatabase,
+  IconDeviceMobile,
+  IconMap,
+  IconRefresh,
+  IconServer,
+} from '@tabler/icons-react';
+import { formatDuration, intervalToDuration } from 'date-fns';
+import { Link } from 'react-router';
+
 import { versions } from '../../_versions';
-import axios from '../../axios_config';
 import { apiRoutes } from '../../apiRoutes';
-import bytes_formatter from '../../bytes_formatter';
-import '@mantine/charts/styles.css';
+import axios, { apiErrorMessage } from '../../axios_config';
+import bytesFormatter from '../../bytes_formatter';
+import { ErrorState } from '../../components/layout/AsyncState';
+import { PageHeader } from '../../components/layout/PageHeader';
+
+interface ServerStatus {
+  online_euds: number;
+  system_boot_time: string;
+  system_uptime: number;
+  ots_start_time: string;
+  ots_uptime: number;
+  cpu_percent: number;
+  load_avg: number[];
+  memory: { total: number; available: number; used: number; free: number; percent: number };
+  disk_usage: { total: number; used: number; free: number; percent: number };
+  ots_version: string;
+  python_version: string;
+  uname: { system: string; node: string; release: string; version: string; machine: string };
+  os_release: { NAME?: string; PRETTY_NAME?: string; VERSION?: string; VERSION_CODENAME?: string };
+}
+
+function formatUptime(seconds: number) {
+  return (
+    formatDuration(intervalToDuration({ start: 0, end: Math.max(0, seconds) * 1000 }), {
+      format: ['days', 'hours', 'minutes'],
+    }) || 'Less than a minute'
+  );
+}
+
+function resourceColor(percent: number) {
+  if (percent >= 90) return 'red';
+  if (percent >= 75) return 'orange';
+  return 'teal';
+}
+
+function ResourceCard({
+  title,
+  value,
+  detail,
+  icon,
+}: {
+  title: string;
+  value: number;
+  detail: string;
+  icon: React.ReactNode;
+}) {
+  const color = resourceColor(value);
+  return (
+    <Card withBorder radius="lg" padding="lg">
+      <Group justify="space-between" align="flex-start">
+        <Stack gap={3}>
+          <Text size="sm" c="dimmed" fw={600}>
+            {title}
+          </Text>
+          <Text fz={30} fw={750} lh={1}>
+            {Math.round(value)}%
+          </Text>
+        </Stack>
+        <ThemeIcon size={42} radius="md" variant="light" color={color}>
+          {icon}
+        </ThemeIcon>
+      </Group>
+      <Progress value={value} color={color} mt="lg" radius="xl" />
+      <Text size="xs" c="dimmed" mt="xs">
+        {detail}
+      </Text>
+    </Card>
+  );
+}
+
+const quickLinks = [
+  { label: 'Open live map', path: '/map', icon: IconMap },
+  { label: 'Review devices', path: '/euds', icon: IconDeviceMobile },
+  { label: 'Inspect CoT activity', path: '/activity', icon: IconActivityHeartbeat },
+  { label: 'Manage certificates', path: '/certificates', icon: IconCertificate },
+];
 
 export default function Dashboard() {
-    const [tcpEnabled, setTcpEnabled] = useState(true);
-    const [sslEnabled, setSslEnabled] = useState(true);
-    const [uname, setUname] = useState({
-        machine: '',
-        node: '',
-        release: '',
-        system: '',
-        version: '',
-    });
-    const [osRelease, setOsRelease] = useState({
-        NAME: '',
-        PRETTY_NAME: '',
-        VERSION: '',
-        VERSION_CODENAME: '',
-    });
-    const [ots, setOts] = useState({
-        version: '',
-        uptime: 0,
-        start_time: '',
-        python_version: '',
-    });
-    const [alerts, setAlerts] = useState({
-        cot_router: false,
-        tcp: false,
-        ssl: false,
-        online_euds: 0,
-    });
-    const [serverStatus, setServerStatus] = useState({
-        cpu_percent: 0,
-    });
-    const [disk, setDisk] = useState({
-        free: 0,
-        used: 0,
-        total: 0,
-        percent: 0,
-    });
-    const [memory, setMemory] = useState({
-        available: 0,
-        free: 0,
-        used: 0,
-        total: 0,
-        percent: 0,
-    });
-    const [uptime, setUptime] = useState({
-        boot_time: '',
-        uptime: 0,
-    });
+  const [status, setStatus] = useState<ServerStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-    useEffect(() => {
-            axios.get(
-                apiRoutes.status
-            ).then(r => {
-                if (r.status === 200) {
-                    setAlerts({
-                        cot_router: r.data.cot_router,
-                        tcp: r.data.tcp,
-                        ssl: r.data.ssl,
-                        online_euds: r.data.online_euds,
-                    });
-                    setServerStatus({ cpu_percent: r.data.cpu_percent });
-                    setDisk({
-                        free: r.data.disk_usage.free,
-                        used: r.data.disk_usage.used,
-                        total: r.data.disk_usage.total,
-                        percent: r.data.disk_usage.percent,
-                    });
-                    setMemory({
-                        available: r.data.memory.available,
-                        free: r.data.memory.free,
-                        used: r.data.memory.used,
-                        total: r.data.memory.total,
-                        percent: r.data.memory.percent,
-                    });
-                    setOts({
-                        version: r.data.ots_version,
-                        uptime: r.data.ots_uptime,
-                        start_time: parseISO(r.data.ots_start_time).toLocaleString(),
-                        python_version: r.data.python_version,
-                    });
-                    setUptime({
-                        uptime: r.data.system_uptime,
-                        boot_time: r.data.system_boot_time,
-                    });
-                    setTcpEnabled(r.data.tcp);
-                    setSslEnabled(r.data.ssl);
-                    setUname(r.data.uname);
-                    setOsRelease(r.data.os_release);
-                }
-            }).catch(err => {
-                console.log(err);
-            });
-    }, []);
+  const loadStatus = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    setError('');
+    try {
+      const response = await axios.get<ServerStatus>(apiRoutes.status);
+      setStatus(response.data);
+      setLastUpdated(new Date());
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Server status could not be loaded.'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    return (
-        <ScrollArea>
-            <Center>
-                <Title mb="xl" order={2}>Server Status</Title>
-            </Center>
-            <Center mb="xl">
-                <Flex direction={{ base: 'column', xs: 'row' }}>
-                    <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>CPU Usage</Title></Center>
-                        <Center>
-                            <DonutChart
-                              data={[
-                                    { name: 'Used Percentage', value: serverStatus.cpu_percent, color: 'blue' },
-                                    { name: 'Idle Percentage', value: 100 - serverStatus.cpu_percent, color: 'gray.6' },
-                                ]}
-                            />
-                        </Center>
-                        <Center><Text fw={700} size="md" c="green.9">{`${serverStatus.cpu_percent}%`}</Text></Center>
-                    </Paper>
-                    <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>Disk Usage</Title></Center>
-                        <Center>
-                            <DonutChart
-                              data={[
-                                    { name: 'Used Percentage', value: disk.percent, color: 'blue' },
-                                    { name: 'Free Percentage', value: 100 - disk.percent, color: 'gray.6' },
-                                ]}
-                            />
-                        </Center>
-                        <Center><Text fw={700} size="md" c="green.9">Total Space: {`${bytes_formatter(disk.total)}`}</Text></Center>
-                        <Center><Text fw={700} size="md" c="green.9">Used Space: {`${bytes_formatter(disk.used)}`}</Text></Center>
-                    </Paper>
-                    <Paper withBorder shadow="xl" radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>Memory Usage</Title></Center>
-                        <Center>
-                            <DonutChart
-                              data={[
-                                { name: 'Used Percentage', value: memory.percent, color: 'blue' },
-                                { name: 'Free Percentage', value: 100 - memory.percent, color: 'gray.6' },
-                            ]}
-                            />
-                        </Center>
-                        <Center><Text fw={700} size="md" c="green.9">Available Memory: {`${bytes_formatter(memory.available)}`}</Text></Center>
-                        <Center><Text fw={700} size="md" c="green.9">Used Memory: {`${bytes_formatter(memory.used)}`}</Text></Center>
-                    </Paper>
-                    <Paper shadow="xl" withBorder radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>Uptime</Title></Center>
-                        <Flex><Text fw={700}>Uptime:</Text><Space w="md" /><Text>{formatDuration(intervalToDuration({ start: 0, end: uptime.uptime * 1000 }))}</Text></Flex>
-                        <Flex><Text fw={700}>Boot Time:</Text><Space w="md" />{parseISO(uptime.boot_time).toLocaleString()}</Flex>
-                    </Paper>
-                </Flex>
-            </Center>
-            <Divider my="lg" />
-            <Center>
-                <Title mb="xl" order={2}>Server Details</Title>
-            </Center>
-            <Center mb="xl">
-                <Flex direction={{ base: 'column', xs: 'row' }}>
-                    <Paper shadow="xl" withBorder radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>uname</Title></Center>
-                        <Flex><Text fw={700}>System:</Text><Space w="md" /><Text>{uname.system}</Text></Flex>
-                        <Flex><Text fw={700}>Release:</Text><Space w="md" />{uname.release}</Flex>
-                        <Flex><Text fw={700}>Version:</Text><Space w="md" />{uname.version}</Flex>
-                        <Flex><Text fw={700}>Architecture:</Text><Space w="md" />{uname.machine}</Flex>
-                        <Flex><Text fw={700}>Hostname:</Text><Space w="md" />{uname.node}</Flex>
-                    </Paper>
-                    <Paper shadow="xl" withBorder radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>OS Release</Title></Center>
-                        <Flex><Text fw={700}>Name:</Text><Space w="md" /><Text>{osRelease.NAME}</Text></Flex>
-                        <Flex><Text fw={700}>Pretty Name:</Text><Space w="md" /><Text>{osRelease.PRETTY_NAME}</Text></Flex>
-                        <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{osRelease.VERSION}</Text></Flex>
-                        <Flex><Text fw={700}>Code Name:</Text><Space w="md" /><Text>{osRelease.VERSION_CODENAME}</Text></Flex>
-                    </Paper>
-                    <Paper shadow="xl" withBorder radius="md" p="xl" mr="md" mb="md">
-                        <Center mb="md"><Title order={4}>OpenTAKServer</Title></Center>
-                        <Flex><Text fw={700}>Version:</Text><Space w="md" /><Text>{ots.version}</Text></Flex>
-                        <Flex><Text fw={700}>UI Version:</Text><Space w="md" /><Text>{versions.gitTag}</Text></Flex>
-                        <Flex><Text fw={700}>UI Commit Hash:</Text><Space w="md" /><Text>{versions.gitCommitHash}</Text></Flex>
-                        <Flex><Text fw={700}>UI Commit Date:</Text><Space w="md" /><Text>{parseISO(versions.versionDate).toLocaleString()}</Text></Flex>
-                        <Flex><Text fw={700}>Uptime:</Text><Space w="md" />
-                            <Text>
-                                {formatDuration(intervalToDuration({ start: 0, end: ots.uptime * 1000 }))}
-                            </Text>
-                        </Flex>
-                        <Flex><Text fw={700}>Start Time:</Text><Space w="md" /><Text>{ots.start_time}</Text></Flex>
-                        <Flex><Text fw={700}>Python Version:</Text><Space w="md" /><Text>{ots.python_version}</Text></Flex>
-                    </Paper>
-                </Flex>
-            </Center>
-        </ScrollArea>
-    );
+  useEffect(() => {
+    void loadStatus();
+    const interval = window.setInterval(() => void loadStatus(false), 30_000);
+    return () => window.clearInterval(interval);
+  }, [loadStatus]);
+
+  return (
+    <>
+      <PageHeader
+        title="Operations overview"
+        description="Current OpenTAKServer health, resource utilization, and shortcuts for common operator tasks."
+        actions={
+          <Group gap="sm">
+            {lastUpdated ? (
+              <Text size="xs" c="dimmed">
+                Updated {lastUpdated.toLocaleTimeString()}
+              </Text>
+            ) : null}
+            <Button
+              variant="light"
+              leftSection={<IconRefresh size={16} />}
+              loading={loading}
+              onClick={() => void loadStatus()}
+            >
+              Refresh
+            </Button>
+          </Group>
+        }
+      />
+
+      {error ? <ErrorState message={error} onRetry={() => void loadStatus()} /> : null}
+
+      {!error && loading && !status ? (
+        <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }}>
+          {[0, 1, 2, 3].map((key) => (
+            <Skeleton key={key} height={168} radius="lg" />
+          ))}
+        </SimpleGrid>
+      ) : null}
+
+      {status ? (
+        <Stack gap="xl">
+          <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }}>
+            <Card withBorder radius="lg" padding="lg">
+              <Group justify="space-between" align="flex-start">
+                <Stack gap={3}>
+                  <Text size="sm" c="dimmed" fw={600}>
+                    Online TAK devices
+                  </Text>
+                  <Text fz={30} fw={750} lh={1}>
+                    {status.online_euds}
+                  </Text>
+                </Stack>
+                <ThemeIcon size={42} radius="md" variant="light" color="blue">
+                  <IconDeviceMobile size={24} />
+                </ThemeIcon>
+              </Group>
+              <Badge color="teal" variant="light" mt="lg">
+                Live server count
+              </Badge>
+              <Text size="xs" c="dimmed" mt="xs">
+                Devices currently reporting Connected
+              </Text>
+            </Card>
+            <ResourceCard
+              title="CPU utilization"
+              value={status.cpu_percent}
+              detail={`Load average: ${status.load_avg.map((value) => value.toFixed(2)).join(' / ')}`}
+              icon={<IconCpu size={24} />}
+            />
+            <ResourceCard
+              title="Memory utilization"
+              value={status.memory.percent}
+              detail={`${bytesFormatter(status.memory.used)} used of ${bytesFormatter(status.memory.total)}`}
+              icon={<IconDatabase size={24} />}
+            />
+            <ResourceCard
+              title="Disk utilization"
+              value={status.disk_usage.percent}
+              detail={`${bytesFormatter(status.disk_usage.free)} available of ${bytesFormatter(status.disk_usage.total)}`}
+              icon={<IconServer size={24} />}
+            />
+          </SimpleGrid>
+
+          <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+            <Paper withBorder radius="lg" p="lg">
+              <Group justify="space-between" mb="md">
+                <Title order={3}>Runtime details</Title>
+                <Badge color="teal" variant="dot">
+                  Operational
+                </Badge>
+              </Group>
+              <Table verticalSpacing="sm">
+                <Table.Tbody>
+                  <Table.Tr>
+                    <Table.Th>OpenTAKServer</Table.Th>
+                    <Table.Td>{status.ots_version}</Table.Td>
+                  </Table.Tr>
+                  <Table.Tr>
+                    <Table.Th>Server uptime</Table.Th>
+                    <Table.Td>{formatUptime(status.ots_uptime)}</Table.Td>
+                  </Table.Tr>
+                  <Table.Tr>
+                    <Table.Th>Host uptime</Table.Th>
+                    <Table.Td>{formatUptime(status.system_uptime)}</Table.Td>
+                  </Table.Tr>
+                  <Table.Tr>
+                    <Table.Th>Host</Table.Th>
+                    <Table.Td>
+                      {status.uname.node} · {status.uname.machine}
+                    </Table.Td>
+                  </Table.Tr>
+                  <Table.Tr>
+                    <Table.Th>Operating system</Table.Th>
+                    <Table.Td>
+                      {status.os_release.PRETTY_NAME ||
+                        `${status.uname.system} ${status.uname.release}`}
+                    </Table.Td>
+                  </Table.Tr>
+                  <Table.Tr>
+                    <Table.Th>Python</Table.Th>
+                    <Table.Td>{status.python_version}</Table.Td>
+                  </Table.Tr>
+                  <Table.Tr>
+                    <Table.Th>Web interface</Table.Th>
+                    <Table.Td>
+                      {versions.gitTag || 'Development'} ·{' '}
+                      <Text span ff="monospace" size="sm">
+                        {versions.gitCommitHash?.slice(0, 8) || 'local'}
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                </Table.Tbody>
+              </Table>
+            </Paper>
+
+            <Paper withBorder radius="lg" p="lg">
+              <Title order={3} mb={4}>
+                Quick actions
+              </Title>
+              <Text c="dimmed" size="sm" mb="md">
+                Jump to common operational workflows.
+              </Text>
+              <Stack gap="xs">
+                {quickLinks.map((item) => (
+                  <Anchor key={item.path} component={Link} to={item.path} underline="never">
+                    <Group gap="sm" p="sm" wrap="nowrap">
+                      <ThemeIcon variant="light" radius="md">
+                        <item.icon size={18} />
+                      </ThemeIcon>
+                      <Text fw={600} size="sm">
+                        {item.label}
+                      </Text>
+                    </Group>
+                  </Anchor>
+                ))}
+              </Stack>
+            </Paper>
+          </SimpleGrid>
+        </Stack>
+      ) : null}
+    </>
+  );
 }
