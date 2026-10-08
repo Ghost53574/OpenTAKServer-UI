@@ -25,7 +25,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
 import { t } from 'i18next';
 import { Link } from 'react-router';
@@ -94,7 +94,7 @@ export default function Users() {
         console.log(err);
         notifications.show({
           title: t('Failed to get users'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -125,7 +125,7 @@ export default function Users() {
         console.log(err);
         notifications.show({
           title: t('Failed to get group list'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -144,7 +144,7 @@ export default function Users() {
         console.log(err);
         notifications.show({
           title: t('Failed remove user from group'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -152,43 +152,53 @@ export default function Users() {
   }
 
   function getMemberships(user_name: string) {
-    axios.get(apiRoutes.userGroups, { params: { username: user_name } }).then((r) => {
-      if (r.status === 200) {
-        const tableData: TableData = {
-          caption: '',
-          head: [t('Group Name'), t('Direction'), t('Active')],
-          body: [],
-        };
+    axios
+      .get(apiRoutes.userGroups, { params: { username: user_name } })
+      .then((r) => {
+        if (r.status === 200) {
+          const tableData: TableData = {
+            caption: '',
+            head: [t('Group Name'), t('Direction'), t('Active')],
+            body: [],
+          };
 
-        r.data.results.map((row: any) => {
-          const active_switch = (
-            <Tooltip
-              refProp="rootRef"
-              label={t("This membership can be activated or deactivated from the user's EUD")}
-            >
-              <Switch checked={row.active} />
-            </Tooltip>
-          );
+          r.data.results.map((row: any) => {
+            const active_switch = (
+              <Tooltip
+                refProp="rootRef"
+                label={t("This membership can be activated or deactivated from the user's EUD")}
+              >
+                <Switch checked={row.active} />
+              </Tooltip>
+            );
 
-          const delete_button = (
-            <Button
-              color="red"
-              onClick={() => {
-                removeUserFromGroup(user_name, row.group_name, row.direction);
-              }}
-              key={`${row.group_name}_remove`}
-              rightSection={<IconUsersMinus size={14} />}
-            >
-              Remove
-            </Button>
-          );
+            const delete_button = (
+              <Button
+                color="red"
+                onClick={() => {
+                  removeUserFromGroup(user_name, row.group_name, row.direction);
+                }}
+                key={`${row.group_name}_remove`}
+                rightSection={<IconUsersMinus size={14} />}
+              >
+                Remove
+              </Button>
+            );
 
-          tableData.body?.push([row.group_name, row.direction, active_switch, delete_button]);
+            tableData.body?.push([row.group_name, row.direction, active_switch, delete_button]);
+          });
+
+          setMemberships(tableData);
+        }
+      })
+      .catch((error) => {
+        notifications.show({
+          title: t('Error'),
+          message: apiErrorMessage(error, t('The request failed. Please try again.')),
+          color: 'red',
+          icon: <IconX />,
         });
-
-        setMemberships(tableData);
-      }
-    });
+      });
   }
 
   function addUserToGroups(direction: string) {
@@ -204,7 +214,7 @@ export default function Users() {
         console.log(err);
         notifications.show({
           title: t('Failed to add user to group'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -228,7 +238,7 @@ export default function Users() {
         console.log(err);
         notifications.show({
           title: t('Failed to delete user'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -250,7 +260,7 @@ export default function Users() {
       .catch((err) => {
         notifications.show({
           title: t('Failed to add user'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -271,7 +281,7 @@ export default function Users() {
       .catch((err) => {
         notifications.show({
           title: `Failed to change ${username}'s role`,
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -292,7 +302,7 @@ export default function Users() {
       .catch((err) => {
         notifications.show({
           title: `Failed to deactivate ${username}`,
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -313,7 +323,7 @@ export default function Users() {
       .catch((err) => {
         notifications.show({
           title: `Failed to activate ${username}`,
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -337,7 +347,7 @@ export default function Users() {
       .catch((err) => {
         notifications.show({
           title: `Failed to change ${username}'s password`,
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });

@@ -1,4 +1,4 @@
-import axios from '@/axios_config.tsx';
+import axios, { apiErrorMessage } from '@/axios_config.tsx';
 import { apiRoutes } from '@/apiRoutes.tsx';
 import { Select } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -57,7 +57,7 @@ export default function LanguageSelector(): React.ReactElement {
         console.log(err);
         notifications.show({
           title: t('Failed to set language'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -86,7 +86,7 @@ export default function LanguageSelector(): React.ReactElement {
         console.log(err);
         notifications.show({
           title: t('Failed to get supported languages'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });

@@ -53,6 +53,8 @@ Run the same complete gate used by CI:
 
 ```bash
 yarn test
+yarn playwright install chromium
+yarn test:browser
 ```
 
 That command runs, in order:
@@ -62,6 +64,12 @@ That command runs, in order:
 3. ESLint and Stylelint
 4. Vitest unit/component tests
 5. The production Vite build
+
+`yarn test:browser` additionally loads the production chunks in Chromium across
+the operator and administrator routes, including simulated network failures.
+It runs in CI after the build and uses API fixtures; it is not a replacement for
+live server integration testing. To use a locally installed Chromium, set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable path.
 
 For focused development:
 

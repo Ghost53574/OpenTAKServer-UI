@@ -54,10 +54,17 @@ export function apiErrorMessage(error: unknown, fallback: string) {
   }
 
   const data = error.response?.data as
-    | { error?: string; message?: string; response?: { errors?: string[] } }
+    | { error?: unknown; message?: unknown; errors?: unknown; response?: { errors?: unknown } }
     | undefined;
 
-  return data?.error ?? data?.message ?? data?.response?.errors?.[0] ?? fallback;
+  for (const candidate of [data?.error, data?.message, data?.errors, data?.response?.errors]) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate;
+    if (Array.isArray(candidate)) {
+      const message = candidate.find((entry) => typeof entry === 'string' && entry.trim());
+      if (message) return message as string;
+    }
+  }
+  return fallback;
 }
 
 export default axios;

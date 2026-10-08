@@ -3,7 +3,7 @@ import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
 import { IconDownload, IconCircleMinus, IconX, IconCheck, IconQrcode } from '@tabler/icons-react';
 import { QRCode } from 'react-qrcode-logo';
-import axios from '@/axios_config';
+import axios, { apiErrorMessage } from '@/axios_config';
 import { apiRoutes } from '@/apiRoutes';
 import bytes_formatter from '@/bytes_formatter';
 import Logo from '@/images/ots-logo.png';
@@ -84,7 +84,7 @@ export default function DataPackages() {
         .catch((err) => {
           notifications.show({
             title: t('Failed to upload data package'),
-            message: err.response.data.error,
+            message: apiErrorMessage(err, t('The request failed. Please try again.')),
             icon: <IconX />,
             color: 'red',
           });
@@ -131,7 +131,7 @@ export default function DataPackages() {
         console.log(err);
         notifications.show({
           title: t('Delete Failed'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           autoClose: false,
           color: 'red',
@@ -155,7 +155,7 @@ export default function DataPackages() {
         notifications.show({
           icon: <IconX />,
           title: t('Failed to update data package'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -240,6 +240,15 @@ export default function DataPackages() {
           setPage(r.data.current_page);
           setDataPackages(rows);
         }
+      })
+      .catch((err) => {
+        setLoading(false);
+        notifications.show({
+          title: t('Failed to get data packages'),
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
+          color: 'red',
+          icon: <IconX />,
+        });
       });
   }
 
@@ -262,7 +271,7 @@ export default function DataPackages() {
         console.log(err);
         notifications.show({
           title: 'Error',
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconCheck />,
           color: 'red',
         });

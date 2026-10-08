@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import { IconCheck, IconCircleMinus, IconUpload, IconX } from '@tabler/icons-react';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { notifications } from '@mantine/notifications';
 import { apiRoutes } from '@/apiRoutes.tsx';
 import { t } from 'i18next';
@@ -73,7 +73,7 @@ export default function PluginUpdates() {
         notifications.show({
           icon: <IconX />,
           title: t('Failed to update package'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -181,7 +181,7 @@ export default function PluginUpdates() {
         notifications.show({
           icon: <IconX />,
           title: t('Failed to get data'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -222,7 +222,7 @@ export default function PluginUpdates() {
           icon: <IconX />,
           color: 'red',
           title: t('Failed to upload plugin'),
-          message: err.response.data.errors[0],
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
         });
         setUploading(false);
       });
@@ -247,7 +247,7 @@ export default function PluginUpdates() {
         notifications.show({
           icon: <IconX />,
           title: t('Failed to delete plugin'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
         setDeleteModalOpen(false);

@@ -16,7 +16,7 @@ import {
   Box,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { apiRoutes } from '@/apiRoutes.tsx';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconCircleMinus, IconX, IconDownload } from '@tabler/icons-react';
@@ -71,7 +71,7 @@ export default function LinkTakGov() {
         console.error(err);
         notifications.show({
           title: t('Failed check link status'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -126,7 +126,7 @@ export default function LinkTakGov() {
         setLoading(false);
         notifications.show({
           title: t('Failed to get plugin list'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -153,7 +153,7 @@ export default function LinkTakGov() {
         setLoading(false);
         notifications.show({
           title: t('Failed to download plugin'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -179,7 +179,7 @@ export default function LinkTakGov() {
         console.error(err);
         notifications.show({
           title: t('Failed to link account'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -207,7 +207,7 @@ export default function LinkTakGov() {
         console.error(err);
         notifications.show({
           title: t('Failed to get auth token'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -235,7 +235,7 @@ export default function LinkTakGov() {
         console.error(err);
         notifications.show({
           title: t('Failed to unlink account'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });

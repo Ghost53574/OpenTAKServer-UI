@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { t } from 'i18next';
 import LanguageSelector from '../components/LanguageSelector.tsx';
 import {
@@ -14,7 +14,7 @@ import {
   Tooltip,
   Switch,
 } from '@mantine/core';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { apiRoutes } from '@/apiRoutes.tsx';
 import { notifications } from '@mantine/notifications';
 import { IconUsersMinus, IconX, IconDeviceMobile, IconUsersGroup } from '@tabler/icons-react';
@@ -99,7 +99,6 @@ export default function UserProfile() {
   });
 
   const params = useParams();
-  const location = useLocation();
 
   function get_my_info() {
     axios
@@ -113,7 +112,7 @@ export default function UserProfile() {
         console.log(err);
         notifications.show({
           title: t('Failed to get user info'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -134,7 +133,7 @@ export default function UserProfile() {
         console.log(err);
         notifications.show({
           title: t('Failed to get user info'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -143,7 +142,7 @@ export default function UserProfile() {
 
   function generate_eud_table() {
     const body: any = [];
-    user?.euds.forEach((eud: EUD) => {
+    user?.euds?.forEach((eud: EUD) => {
       const callsign_link = (
         <Link to={`/eud_stats?uid=${eud.uid}&callsign=${eud.callsign}`}>{eud.callsign}</Link>
       );
@@ -165,7 +164,7 @@ export default function UserProfile() {
 
   function generate_groups_table() {
     const body: any = [];
-    user?.group_memberships.forEach((membership: GroupMemberships) => {
+    user?.group_memberships?.forEach((membership: GroupMemberships) => {
       const delete_button = (
         <Button
           color="red"
@@ -206,7 +205,7 @@ export default function UserProfile() {
         console.log(err);
         notifications.show({
           title: t('Failed remove user from group'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -214,9 +213,9 @@ export default function UserProfile() {
   }
 
   useEffect(() => {
-    if (location.pathname === '/profile') get_my_info();
+    if (!params.username) get_my_info();
     else get_user_info();
-  }, []);
+  }, [params.username]);
 
   useEffect(() => {
     if (rerender) setRerender(false);

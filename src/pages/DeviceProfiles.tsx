@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import { IconCircleMinus, IconUpload, IconX } from '@tabler/icons-react';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { notifications } from '@mantine/notifications';
 import { formatISO, parseISO } from 'date-fns';
 import { apiRoutes } from '../apiRoutes';
@@ -161,7 +161,7 @@ export default function DeviceProfiles() {
         console.log(err);
         notifications.show({
           icon: <IconX />,
-          message: err.response.data.message,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           title: t('Failed to get device profiles'),
           color: 'red',
         });
@@ -220,7 +220,7 @@ export default function DeviceProfiles() {
           icon: <IconX />,
           color: 'red',
           title: t('Failed to add device profile'),
-          message: e.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
         });
       });
   }
@@ -241,22 +241,32 @@ export default function DeviceProfiles() {
         notifications.show({
           icon: <IconX />,
           title: t('Failed to delete device profile'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
   }
 
   function get_euds() {
-    axios.get(apiRoutes.eud, { params: { all: true } }).then((r) => {
-      if (r.status === 200) {
-        const all_callsigns: ComboboxItem[] = [];
-        r.data.map((row: any) => {
-          all_callsigns.push({ value: row.uid, label: row.callsign });
+    axios
+      .get(apiRoutes.eud, { params: { all: true } })
+      .then((r) => {
+        if (r.status === 200) {
+          const all_callsigns: ComboboxItem[] = [];
+          r.data.map((row: any) => {
+            all_callsigns.push({ value: row.uid, label: row.callsign });
+          });
+          setCallsigns(all_callsigns);
+        }
+      })
+      .catch((error) => {
+        notifications.show({
+          title: t('Error'),
+          message: apiErrorMessage(error, t('The request failed. Please try again.')),
+          color: 'red',
+          icon: <IconX />,
         });
-        setCallsigns(all_callsigns);
-      }
-    });
+      });
   }
 
   const value_class = (

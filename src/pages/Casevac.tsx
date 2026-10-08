@@ -1,7 +1,7 @@
 import { Table, Button, Modal, Center } from '@mantine/core';
 import { IconCheck, IconCircleMinus, IconX } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
-import axios from '@/axios_config';
+import axios, { apiErrorMessage } from '@/axios_config';
 import { apiRoutes } from '@/apiRoutes';
 import { t } from 'i18next';
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
@@ -79,7 +79,7 @@ export default function Casevac() {
       .catch((err) => {
         notifications.show({
           title: t('Failed to delete CasEvac'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -128,7 +128,7 @@ export default function Casevac() {
         setLoading(false);
         notifications.show({
           title: t('Failed to get CasEvacs'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });

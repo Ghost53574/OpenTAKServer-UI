@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { apiRoutes } from '@/apiRoutes.tsx';
 import {
   IconCircleMinus,
@@ -118,7 +118,7 @@ export default function Missions() {
           setInviting(false);
           notifications.show({
             title: t('Failed to send mission invitation'),
-            message: err.response.data.error,
+            message: apiErrorMessage(err, t('The request failed. Please try again.')),
             icon: <IconX />,
             color: 'red',
           });
@@ -258,7 +258,7 @@ export default function Missions() {
         console.log(err);
         notifications.show({
           title: t('Failed to get missions'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -283,7 +283,7 @@ export default function Missions() {
       .catch((err) => {
         notifications.show({
           title: t('Failed to delete mission'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -291,15 +291,25 @@ export default function Missions() {
   }
 
   function get_euds() {
-    axios.get(apiRoutes.eud, { params: { all: true } }).then((r) => {
-      if (r.status === 200) {
-        const all_callsigns: ComboboxItem[] = [];
-        r.data.map((row: any) => {
-          all_callsigns.push({ value: row.uid, label: row.callsign });
+    axios
+      .get(apiRoutes.eud, { params: { all: true } })
+      .then((r) => {
+        if (r.status === 200) {
+          const all_callsigns: ComboboxItem[] = [];
+          r.data.map((row: any) => {
+            all_callsigns.push({ value: row.uid, label: row.callsign });
+          });
+          setCallsigns(all_callsigns);
+        }
+      })
+      .catch((error) => {
+        notifications.show({
+          title: t('Error'),
+          message: apiErrorMessage(error, t('The request failed. Please try again.')),
+          color: 'red',
+          icon: <IconX />,
         });
-        setCallsigns(all_callsigns);
-      }
-    });
+      });
   }
 
   useEffect(() => {
@@ -371,7 +381,7 @@ export default function Missions() {
         setShowAddMission(false);
         notifications.show({
           title: t('Failed to add mission'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -412,7 +422,7 @@ export default function Missions() {
         console.log(err);
         notifications.show({
           title: t('Failed to get group list'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });

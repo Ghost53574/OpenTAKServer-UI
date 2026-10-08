@@ -19,7 +19,7 @@ import {
   IconInfoCircle,
   IconX,
 } from '@tabler/icons-react';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { notifications } from '@mantine/notifications';
 import { socket } from '@/socketio';
 import { apiRoutes } from '../apiRoutes';
@@ -155,8 +155,8 @@ export default function ServerPluginManager() {
         return true;
       }
 
-      const version1_post = parseInt(version1_regex[4].replace('post', ''), 10);
-      const version2_post = parseInt(version2_regex[4].replace('post', ''), 10);
+      const version1_post = parseInt(version1_regex[4]?.replace('post', '') ?? '0', 10);
+      const version2_post = parseInt(version2_regex[4]?.replace('post', '') ?? '0', 10);
       if (version1_post > version2_post) {
         return true;
       }
@@ -192,7 +192,7 @@ export default function ServerPluginManager() {
       project_urls = about.project_url;
     }
 
-    project_urls.forEach((value) => {
+    (project_urls ?? []).forEach((value) => {
       if (value.startsWith('Documentation')) {
         setDocUrl(value.split(', ')[1]);
       } else if (value.startsWith('Repository')) {
@@ -221,7 +221,7 @@ export default function ServerPluginManager() {
           console.log(err);
           notifications.show({
             title: 'Failed to upload plugin',
-            message: err.response.data.error,
+            message: apiErrorMessage(err, 'The request failed. Please try again.'),
             icon: <IconX />,
             color: 'red',
           });
@@ -241,7 +241,7 @@ export default function ServerPluginManager() {
         console.log(err);
         notifications.show({
           title: 'Failed to get repo URL',
-          message: err.response.data.error,
+          message: apiErrorMessage(err, 'The request failed. Please try again.'),
           icon: <IconX />,
           color: 'red',
         });
@@ -276,7 +276,7 @@ export default function ServerPluginManager() {
         console.log(err);
         notifications.show({
           title: 'Failed to create data package',
-          message: `Response Code: ${err.response.status}`,
+          message: apiErrorMessage(err, 'The request failed. Please try again.'),
           icon: <IconX />,
           color: 'red',
         });
@@ -295,7 +295,7 @@ export default function ServerPluginManager() {
         console.log(err);
         notifications.show({
           title: 'Failed to get plugin info',
-          message: err.response.data.error,
+          message: apiErrorMessage(err, 'The request failed. Please try again.'),
           icon: <IconX />,
           color: 'red',
         });

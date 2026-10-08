@@ -11,7 +11,7 @@ import { IconCheck, IconDeviceFloppy, IconEdit, IconPlayerPlay, IconX } from '@t
 import { notifications } from '@mantine/notifications';
 import { formatISO, parseISO } from 'date-fns';
 import { apiRoutes } from '../apiRoutes';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { t } from 'i18next';
 
 export default function ScheduledJobs() {
@@ -67,7 +67,7 @@ export default function ScheduledJobs() {
         console.log(error);
         notifications.show({
           title: t('Error'),
-          message: error.response.data.errors,
+          message: apiErrorMessage(error, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -93,7 +93,7 @@ export default function ScheduledJobs() {
         console.log(error);
         notifications.show({
           title: t('Error'),
-          message: error.response.data.errors,
+          message: apiErrorMessage(error, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -118,7 +118,7 @@ export default function ScheduledJobs() {
         console.log(error);
         notifications.show({
           title: t('Error'),
-          message: error.response.data.errors,
+          message: apiErrorMessage(error, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -285,11 +285,21 @@ export default function ScheduledJobs() {
   }
 
   function getJobs() {
-    axios.get(apiRoutes.getScheduledJobs).then((r) => {
-      if (r.status === 200) {
-        setData(r.data);
-      }
-    });
+    axios
+      .get(apiRoutes.getScheduledJobs)
+      .then((r) => {
+        if (r.status === 200) {
+          setData(r.data);
+        }
+      })
+      .catch((error) => {
+        notifications.show({
+          title: t('Error'),
+          message: apiErrorMessage(error, t('The request failed. Please try again.')),
+          color: 'red',
+          icon: <IconX />,
+        });
+      });
   }
 
   useEffect(() => {

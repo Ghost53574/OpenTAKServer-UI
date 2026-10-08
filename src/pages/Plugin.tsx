@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
 import Markdown from 'react-markdown';
-import { Link, useSearchParams } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import {
   Tabs,
   Text,
@@ -22,7 +22,7 @@ import {
   IconInfoCircle,
 } from '@tabler/icons-react';
 import { parse, stringify } from 'yaml';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { notifications } from '@mantine/notifications';
 import { apiRoutes } from '@/apiRoutes.tsx';
 import { t } from 'i18next';
@@ -36,7 +36,8 @@ interface About {
   license: string;
   metadata_version: string;
   name: string;
-  project_url: Array<string>;
+  project_url?: Array<string>;
+  project_urls?: Array<string>;
   requires_dist: Array<string>;
   requires_python: string;
   summary: string;
@@ -53,21 +54,22 @@ export default function Plugin() {
   const [repoUrl, setRepoUrl] = useState('');
   const [showUITab, setShowUITab] = useState(true);
   const [enabled, setEnabled] = useState(true);
-  const [pluginName, setPluginName] = useState<string | null>(null);
+  const pluginName = params.get('name');
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
 
   useEffect(() => {
-    setPluginName(params.get('name'));
-    getAbout();
-  }, [params]);
+    if (pluginName) getAbout();
+  }, [pluginName]);
 
   useEffect(() => {
-    getConfig();
-    checkUi();
+    if (about) {
+      getConfig();
+      checkUi();
+    }
   }, [about]);
 
   useEffect(() => {
-    about?.project_url.forEach((value) => {
+    (about?.project_url ?? about?.project_urls ?? []).forEach((value) => {
       if (value.startsWith('Documentation')) {
         setDocUrl(value.split(', ')[1]);
       } else if (value.startsWith('Repository')) {
@@ -78,15 +80,18 @@ export default function Plugin() {
 
   function checkUi() {
     if (pluginName !== null) {
-      axios.get(`/api/plugins/${pluginName}/ui`).then((r) => {
-        if (r.status === 200) {
-          if (!r.data) {
-            setShowUITab(false);
-          } else {
-            setShowUITab(true);
+      axios
+        .get(`/api/plugins/${pluginName}/ui`)
+        .then((r) => {
+          if (r.status === 200) {
+            if (!r.data) {
+              setShowUITab(false);
+            } else {
+              setShowUITab(true);
+            }
           }
-        }
-      });
+        })
+        .catch(() => setShowUITab(false));
     }
   }
 
@@ -123,7 +128,7 @@ export default function Plugin() {
         console.log(err);
         notifications.show({
           title: t('Error getting plugin data'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -166,7 +171,7 @@ export default function Plugin() {
           console.log(err);
           notifications.show({
             title: t('Failed to update plugin config'),
-            message: err.response.data.error,
+            message: apiErrorMessage(err, t('The request failed. Please try again.')),
             icon: <IconX />,
             color: 'red',
           });
@@ -217,6 +222,8 @@ export default function Plugin() {
         });
       });
   }
+
+  if (!pluginName) return <Navigate to="/server_plugin_manager" replace />;
 
   return (
     <div>

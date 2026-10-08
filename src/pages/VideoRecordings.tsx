@@ -10,7 +10,7 @@ import {
 import './VideoRecordings.module.css';
 import { intervalToDuration, formatDuration } from 'date-fns';
 import { notifications } from '@mantine/notifications';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
 import bytes_formatter from '@/bytes_formatter';
 import { t } from 'i18next';
@@ -153,7 +153,7 @@ export default function VideoRecordings() {
         console.log(err);
         notifications.show({
           title: t('Failed to get recordings'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -191,7 +191,7 @@ export default function VideoRecordings() {
         console.log(err);
         notifications.show({
           title: t('Failed to delete recording'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
         console.log(err);

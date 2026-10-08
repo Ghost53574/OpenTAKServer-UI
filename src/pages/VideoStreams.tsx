@@ -14,7 +14,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { IconCheck, IconCircleMinus, IconPlus, IconVideo, IconX } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
 import { t } from 'i18next';
 import { DataTable, DataTableSortStatus } from 'mantine-datatable';
@@ -87,7 +87,7 @@ export default function VideoStreams() {
         console.log(err);
         notifications.show({
           title: t('Recording Failed'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -211,7 +211,7 @@ export default function VideoStreams() {
         console.log(err);
         notifications.show({
           title: t('Failed to get video streams'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });
@@ -248,7 +248,7 @@ export default function VideoStreams() {
         console.log(err);
         notifications.show({
           title: t('Failed to delete video stream'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
         console.log(err);
@@ -272,7 +272,7 @@ export default function VideoStreams() {
         console.log(err);
         notifications.show({
           title: t('Failed to add video stream'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
         });
       });

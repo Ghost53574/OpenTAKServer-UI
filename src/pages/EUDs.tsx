@@ -2,7 +2,7 @@ import { Table } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
 import { IconX } from '@tabler/icons-react';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { apiRoutes } from '../apiRoutes';
 import { Link } from 'react-router';
 import { t } from 'i18next';
@@ -80,7 +80,7 @@ export default function EUDs() {
         setLoading(false);
         notifications.show({
           title: t('Failed to get EUDs'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });

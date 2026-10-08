@@ -23,7 +23,7 @@ import {
   IconCopy,
 } from '@tabler/icons-react';
 import { QRCode } from 'react-qrcode-logo';
-import axios from '@/axios_config';
+import axios, { apiErrorMessage } from '@/axios_config';
 import { apiRoutes } from '@/apiRoutes';
 import Logo from '@/images/ots-logo.png';
 import { t } from 'i18next';
@@ -148,7 +148,7 @@ export default function Meshtastic() {
           console.log(err);
           notifications.show({
             title: t('Failed to add channel'),
-            message: err.response.data.error,
+            message: apiErrorMessage(err, t('The request failed. Please try again.')),
             icon: <IconX />,
             color: 'red',
           });
@@ -184,7 +184,7 @@ export default function Meshtastic() {
         console.log(err);
         notifications.show({
           title: t('Failed to add channel'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -293,7 +293,7 @@ export default function Meshtastic() {
         setLoading(false);
         notifications.show({
           title: t('Error getting channel list'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           color: 'red',
           icon: <IconX />,
         });
@@ -316,7 +316,7 @@ export default function Meshtastic() {
         console.log(err);
         notifications.show({
           title: t('Failed to delete channel'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });

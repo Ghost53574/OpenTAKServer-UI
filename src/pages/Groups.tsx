@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import React, { useEffect, useState } from 'react';
-import axios from '../axios_config';
+import axios, { apiErrorMessage } from '../axios_config';
 import { apiRoutes } from '@/apiRoutes.tsx';
 import { IconCircleMinus, IconUserCog, IconUserMinus, IconX } from '@tabler/icons-react';
 import { t } from 'i18next';
@@ -95,7 +95,7 @@ export default function Groups() {
         console.log(err);
         notifications.show({
           title: t('Failed to get groups'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -116,7 +116,7 @@ export default function Groups() {
         console.log(err);
         notifications.show({
           title: t('Failed to create group'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -136,7 +136,7 @@ export default function Groups() {
         console.log(err);
         notifications.show({
           title: t('Failed to add user to group'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -159,7 +159,7 @@ export default function Groups() {
         console.log(err);
         notifications.show({
           title: t('Failed to get user list'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -178,7 +178,7 @@ export default function Groups() {
         console.log(err);
         notifications.show({
           title: `Failed delete ${group_name}`,
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -197,7 +197,7 @@ export default function Groups() {
         console.log(err);
         notifications.show({
           title: t('Failed remove user from group'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });
@@ -250,7 +250,7 @@ export default function Groups() {
         console.log(err);
         notifications.show({
           title: t('Failed to get group members'),
-          message: err.response.data.error,
+          message: apiErrorMessage(err, t('The request failed. Please try again.')),
           icon: <IconX />,
           color: 'red',
         });

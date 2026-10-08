@@ -31,4 +31,19 @@ describe('apiErrorMessage', () => {
   it('returns a safe fallback for unknown errors', () => {
     expect(apiErrorMessage(new Error('internal detail'), 'Try again')).toBe('Try again');
   });
+
+  it('handles network failures without an HTTP response', () => {
+    expect(apiErrorMessage(new AxiosError('Network Error', 'ERR_NETWORK'), 'Try again')).toBe(
+      'Try again'
+    );
+  });
+
+  it('accepts top-level validation messages and ignores non-renderable errors', () => {
+    expect(apiErrorMessage(axiosError({ errors: ['Invalid package'] }), 'Fallback')).toBe(
+      'Invalid package'
+    );
+    expect(apiErrorMessage(axiosError({ error: { detail: 'Internal' } }), 'Fallback')).toBe(
+      'Fallback'
+    );
+  });
 });

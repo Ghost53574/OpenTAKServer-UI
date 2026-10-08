@@ -14,6 +14,9 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
+        // Size-based splitting can create circular vendor chunks. Preserve
+        // module initialization order so imported factories are ready at use.
+        strictExecutionOrder: true,
         // Route-level lazy loading already keeps screens separate. Split their
         // shared dependencies as well so a large vendor graph cannot collapse
         // back into multi-megabyte route chunks.
