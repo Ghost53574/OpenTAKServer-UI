@@ -8,7 +8,6 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import './VideoRecordings.module.css';
-import ReactPlayer from 'react-player';
 import { intervalToDuration, formatDuration } from 'date-fns';
 import { notifications } from '@mantine/notifications';
 import axios from '../axios_config';
@@ -280,12 +279,14 @@ export default function VideoRecordings() {
         pb={100}
         mb="xl"
       >
-        <ReactPlayer
-          style={{ position: 'relative' }}
+        {/* TAK recording files do not currently include a caption track. */}
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          aria-label={t('Video recording')}
+          style={{ position: 'relative', width: '100%', height: '100%' }}
           controls
           src={videoUrl}
-          width="100%"
-          height="100%"
+          preload="metadata"
         />
         <Button
           fullWidth

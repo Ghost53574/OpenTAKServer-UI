@@ -1,6 +1,6 @@
-import ReactFlagsSelect from 'react-flags-select';
 import axios from '@/axios_config.tsx';
 import { apiRoutes } from '@/apiRoutes.tsx';
+import { Select } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconLanguageHiragana, IconX, IconCheck } from '@tabler/icons-react';
 import React, { useState, useEffect } from 'react';
@@ -13,8 +13,9 @@ interface LanguageInfo {
 
 export default function LanguageSelector(): React.ReactElement {
   const [languages, setLanguages] = useState<Map<string, LanguageInfo>>();
-  const [countries, setCountries] = useState<string[]>([]);
-  const [labels, setLabels] = useState({});
+  const [languageOptions, setLanguageOptions] = useState<Array<{ value: string; label: string }>>(
+    []
+  );
   const [selectedCountry, setSelectedCountry] = useState(
     localStorage.getItem('country') === null ? 'US' : localStorage.getItem('country')!
   );
@@ -69,18 +70,16 @@ export default function LanguageSelector(): React.ReactElement {
       .then((r) => {
         if (r.status === 200) {
           const supported_languages = new Map();
-          setCountries(Object.keys(r.data));
-
-          const custom_labels: any = {};
+          const options: Array<{ value: string; label: string }> = [];
 
           for (const countryCode in r.data) {
             const language: LanguageInfo = r.data[countryCode];
-            custom_labels[countryCode] = language.name;
             supported_languages.set(countryCode, language);
+            options.push({ value: countryCode, label: language.name });
           }
 
           setLanguages(supported_languages);
-          setLabels(custom_labels);
+          setLanguageOptions(options);
         }
       })
       .catch((err) => {
@@ -95,17 +94,17 @@ export default function LanguageSelector(): React.ReactElement {
   }
 
   return (
-    <>
-      <ReactFlagsSelect
-        selected={selectedCountry}
-        onSelect={(country) => {
-          setSelectedCountry(country);
-        }}
-        customLabels={labels}
-        countries={countries}
-        fullWidth={true}
-        placeholder={<IconLanguageHiragana />}
-      />
-    </>
+    <Select
+      aria-label={t('Language')}
+      data={languageOptions}
+      value={selectedCountry}
+      onChange={(country) => {
+        if (country) setSelectedCountry(country);
+      }}
+      allowDeselect={false}
+      searchable
+      leftSection={<IconLanguageHiragana size={18} />}
+      placeholder={t('Language')}
+    />
   );
 }

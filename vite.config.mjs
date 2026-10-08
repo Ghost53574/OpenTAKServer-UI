@@ -12,8 +12,22 @@ export default defineConfig({
     setupFiles: './vitest.setup.mjs',
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
+        // Route-level lazy loading already keeps screens separate. Split their
+        // shared dependencies as well so a large vendor graph cannot collapse
+        // back into multi-megabyte route chunks.
+        codeSplitting: {
+          minSize: 20 * 1024,
+          maxSize: 400 * 1024,
+          groups: [
+            {
+              name: 'vendor',
+              test: /node_modules[\\/]/,
+              entriesAware: true,
+            },
+          ],
+        },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
 
