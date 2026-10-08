@@ -118,7 +118,9 @@ flowchart TD
 5. Reuse `PageHeader` and `AsyncState` for consistent titles, loading states, empty states, and errors.
 6. Add a focused Vitest test, then run `yarn test`.
 
-Never store passwords, session cookies, CSRF values, or API tokens in `localStorage`. Avoid importing Axios directly: the shared client is what supplies credentials and session-expiry behavior.
+Never store passwords, session cookies, CSRF values, or API tokens in `localStorage`. Use the shared client for same-origin server APIs: it supplies credentials and session-expiry behavior. Public server-plugin index requests use the separate `src/pluginRepository.ts` client, which omits cookies and CSRF headers.
+
+The Server Plugin Manager lists installed Python extensions on entry. **Browse Available Plugins** explicitly reads the configured external catalog, and **Install** starts the server package-manager action. An unavailable catalog leaves installed plugins visible. These extensions are separate from Android APK distribution through Plugin Updates; see the server's [server-plugin guide](https://github.com/Ghost53574/OpenTAK/blob/work/docs/user-guide.md#optional-server-plugins).
 
 ## Production build and deployment
 

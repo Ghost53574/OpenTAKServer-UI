@@ -10,6 +10,8 @@ import {
   LoadingOverlay,
   Center,
   FileInput,
+  Alert,
+  Group,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import {
@@ -27,6 +29,7 @@ import { Link } from 'react-router';
 import Markdown from 'react-markdown';
 import CodeMirror from '@uiw/react-codemirror';
 import { ViewPlugin } from '@codemirror/view';
+import { normalizedPluginName, pluginProjectUrl, pluginRepository } from '../pluginRepository';
 
 interface About {
   author: string;
@@ -70,7 +73,12 @@ export default function ServerPluginManager() {
   const [about, setAbout] = useState<About>({} as About);
   const [docUrl, setDocUrl] = useState('');
   const [repoUrl, setRepoUrl] = useState('');
-  const [installedPlugins, setInstalledPlugins] = useState<string[] | null>(null);
+  const [installedPlugins, setInstalledPlugins] = useState<InstalledPlugin[] | null>(null);
+  const [availablePlugins, setAvailablePlugins] = useState<string[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [pluginsEnabled, setPluginsEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [showCommandOutput, setShowCommandOutput] = useState(false);
   const [commandOutput, setCommandOutput] = useState('');
@@ -78,14 +86,9 @@ export default function ServerPluginManager() {
   const [commandOutputTitle, setCommandOutputTitle] = useState('');
   const [refreshButtonDisabled, setRefreshButtonDisabled] = useState(true);
   const [showModelClose, setShowModelClose] = useState(false);
-  const [pluginRepo, setPluginRepo] = useState('https://repo.opentakserver.io/brian/prod/');
+  const [pluginRepo, setPluginRepo] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [installingPlugin, setInstallingPlugin] = useState(false);
-  const [plugins, setPlugins] = useState<TableData>({
-    caption: '',
-    head: ['Name', 'Show Info', 'Install', 'Delete'],
-    body: [],
-  });
 
   function pluginPackageManager(data: CommandOutput) {
     setCommandOutput((commandOutput) => commandOutput + data.message);
@@ -166,6 +169,7 @@ export default function ServerPluginManager() {
 
   useEffect(() => {
     getPluginRepo();
+    getInstalledPlugins();
 
     socket.on('plugin_package_manager', pluginPackageManager);
 
@@ -175,16 +179,8 @@ export default function ServerPluginManager() {
   }, []);
 
   useEffect(() => {
-    getInstalledPlugins();
-  }, [pluginRepo]);
-
-  useEffect(() => {
-    if (installedPlugins !== null) {
-      getAvailablePlugins();
-    }
-  }, [installedPlugins]);
-
-  useEffect(() => {
+    setDocUrl('');
+    setRepoUrl('');
     let project_urls: string[] = [];
     if (Object.hasOwn(about, 'project_urls')) {
       project_urls = about.project_urls;
@@ -235,6 +231,7 @@ export default function ServerPluginManager() {
       .then((r) => {
         if (r.status === 200) {
           setPluginRepo(r.data.repo_url);
+          setPluginsEnabled(r.data.enabled !== false);
         }
       })
       .catch((err) => {
@@ -249,14 +246,15 @@ export default function ServerPluginManager() {
   }
 
   function getAvailablePluginInfo(pluginName: string) {
-    axios
-      .get(`${pluginRepo}/${pluginName}`, { headers: { Accept: 'application/json' } })
+    if (!pluginRepo) return;
+    setAbout({} as About);
+    pluginRepository
+      .get(pluginProjectUrl(pluginRepo, pluginName))
       .then((r) => {
         let metadata;
         if (r.status === 200) {
           let highestVersion: string | null = null;
           Object.entries(r.data.result).forEach(([key, value]) => {
-            console.log(key);
             if (highestVersion === null) {
               highestVersion = key;
               metadata = value;
@@ -275,8 +273,8 @@ export default function ServerPluginManager() {
       .catch((err) => {
         console.log(err);
         notifications.show({
-          title: 'Failed to create data package',
-          message: apiErrorMessage(err, 'The request failed. Please try again.'),
+          title: 'Failed to get plugin info',
+          message: apiErrorMessage(err, 'The plugin repository could not be reached.'),
           icon: <IconX />,
           color: 'red',
         });
@@ -284,6 +282,7 @@ export default function ServerPluginManager() {
   }
 
   function getInstalledPluginInfo(pluginDistro: string) {
+    setAbout({} as About);
     axios
       .get(`${apiRoutes.plugins}/${pluginDistro}`)
       .then((r) => {
@@ -307,46 +306,7 @@ export default function ServerPluginManager() {
       .get(apiRoutes.plugins)
       .then((r) => {
         if (r.status === 200) {
-          const plugins_list: string[] = [];
-          const tableData: TableData = { ...plugins };
-          r.data.plugins.forEach((installedPlugin: InstalledPlugin) => {
-            plugins_list.push(installedPlugin.name.toLowerCase());
-            tableData.body?.push([
-              installedPlugin.name.toLowerCase(),
-              <Button
-                key={`${installedPlugin.distro}-info`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setShowInfo(true);
-                  getInstalledPluginInfo(installedPlugin.distro);
-                }}
-              >
-                <IconInfoCircle />
-              </Button>,
-              <Button key={`${installedPlugin.distro}-install`} disabled>
-                <IconDownload />
-              </Button>,
-              <Button
-                key={`${installedPlugin.distro}-delete`}
-                color="red"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setShowCommandOutput(true);
-                  setPlugin({
-                    ...plugin,
-                    plugin_name: installedPlugin.name,
-                    action: 'delete',
-                    plugin_distro: installedPlugin.distro,
-                  });
-                  setCommandOutputTitle(`Deleting ${installedPlugin.name}`);
-                }}
-              >
-                <IconCircleMinus />
-              </Button>,
-            ]);
-          });
-          setInstalledPlugins(plugins_list);
-          setPlugins(tableData);
+          setInstalledPlugins(r.data.plugins);
         }
         setLoading(false);
       })
@@ -354,7 +314,8 @@ export default function ServerPluginManager() {
         console.log(err);
         setLoading(false);
         notifications.show({
-          message: 'Failed to get installed plugins',
+          title: 'Failed to get installed plugins',
+          message: apiErrorMessage(err, 'The request failed. Please try again.'),
           icon: <IconX />,
           color: 'red',
         });
@@ -362,60 +323,101 @@ export default function ServerPluginManager() {
   }
 
   function getAvailablePlugins() {
-    setLoading(true);
-    axios
-      .get(pluginRepo, { headers: { Accept: 'application/json' } })
+    if (!pluginRepo || !pluginsEnabled || installedPlugins === null) return;
+    setCatalogLoading(true);
+    setCatalogError('');
+    pluginRepository
+      .get(pluginRepo)
       .then((r) => {
-        if (r.status === 200) {
-          const tableData: TableData = { ...plugins };
-
-          r.data.result.projects.map((p: string) => {
-            const plugin_distro = p.replace(/-/g, '_');
-            const row = [
-              plugin_distro,
-              <Button
-                key={`${plugin_distro}-info`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setShowInfo(true);
-                  getAvailablePluginInfo(plugin_distro);
-                }}
-              >
-                <IconInfoCircle />
-              </Button>,
-              <Button
-                key={`${plugin_distro}-install`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setShowCommandOutput(true);
-                  setPlugin({ ...plugin, plugin_distro, action: 'install', plugin_name: p });
-                  setCommandOutputTitle(`Installing ${p}`);
-                }}
-              >
-                <IconDownload />
-              </Button>,
-              <Button key={`${plugin_distro}-delete`} disabled>
-                <IconCircleMinus />
-              </Button>,
-            ];
-            if (!installedPlugins?.includes(p)) {
-              tableData.body?.push(row);
-            }
-          });
-          setPlugins(tableData);
+        if (
+          !Array.isArray(r.data?.result?.projects) ||
+          !r.data.result.projects.every((project: unknown) => typeof project === 'string')
+        ) {
+          throw new Error('Invalid plugin catalog');
         }
-        setLoading(false);
+        setAvailablePlugins([...new Set<string>(r.data.result.projects)]);
+        setCatalogLoaded(true);
       })
       .catch((err) => {
-        console.log(err);
-        setLoading(false);
-        notifications.show({
-          message: 'Failed to get available plugins',
-          icon: <IconX />,
-          color: 'red',
-        });
-      });
+        setCatalogError(
+          apiErrorMessage(
+            err,
+            'The optional plugin catalog is unavailable. Installed plugins are still listed below. Check repository connectivity and browser CORS access, then retry.'
+          )
+        );
+      })
+      .finally(() => setCatalogLoading(false));
   }
+
+  const installedNames = new Set(
+    (installedPlugins ?? []).map((item) => normalizedPluginName(item.distro))
+  );
+  const plugins: TableData = {
+    head: ['Name', 'Show Info', 'Install', 'Delete'],
+    body: [
+      ...(installedPlugins ?? []).map((item) => [
+        item.name,
+        <Button
+          key={`${item.distro}-info`}
+          aria-label={`Show info for ${item.name}`}
+          onClick={() => {
+            setShowInfo(true);
+            getInstalledPluginInfo(item.distro);
+          }}
+        >
+          <IconInfoCircle />
+        </Button>,
+        <Button key={`${item.distro}-install`} disabled>
+          <IconDownload />
+        </Button>,
+        <Button
+          key={`${item.distro}-delete`}
+          color="red"
+          disabled={!pluginsEnabled}
+          onClick={() => {
+            setShowCommandOutput(true);
+            setPlugin({ plugin_name: item.name, action: 'delete', plugin_distro: item.distro });
+            setCommandOutputTitle(`Deleting ${item.name}`);
+          }}
+        >
+          <IconCircleMinus />
+        </Button>,
+      ]),
+      ...availablePlugins
+        .filter((name) => !installedNames.has(normalizedPluginName(name)))
+        .map((name) => {
+          const distro = name.replace(/-/g, '_');
+          return [
+            name,
+            <Button
+              key={`${name}-info`}
+              aria-label={`Show info for ${name}`}
+              onClick={() => {
+                setShowInfo(true);
+                getAvailablePluginInfo(name);
+              }}
+            >
+              <IconInfoCircle />
+            </Button>,
+            <Button
+              key={`${name}-install`}
+              aria-label={`Install ${name}`}
+              disabled={!pluginsEnabled}
+              onClick={() => {
+                setShowCommandOutput(true);
+                setPlugin({ plugin_distro: distro, action: 'install', plugin_name: name });
+                setCommandOutputTitle(`Installing ${name}`);
+              }}
+            >
+              <IconDownload />
+            </Button>,
+            <Button key={`${name}-delete`} disabled>
+              <IconCircleMinus />
+            </Button>,
+          ];
+        }),
+    ],
+  };
 
   // Scrolls the CodeMirror shell output to the bottom automatically
   const scrollBottom = ViewPlugin.fromClass(
@@ -432,9 +434,44 @@ export default function ServerPluginManager() {
     <>
       <LoadingOverlay visible={loading} zIndex={1000} overlayProps={{ radius: 'sm', blur: 2 }} />
 
-      <Button mb="md" onClick={() => setShowUploadModal(true)}>
-        Upload Plugin
-      </Button>
+      <Text mb="sm">
+        Server plugins are optional Python extensions that run on OpenTAKServer. They are separate
+        from the APKs distributed to Android clients through Plugin Updates. Normal TAK connections
+        do not require them. Browsing reads the catalog; installation requires the Install button.
+      </Text>
+      <Text size="sm" c="dimmed" mb="md">
+        Configured repository: {pluginRepo ?? 'Loading…'}
+      </Text>
+      {!pluginsEnabled && (
+        <Alert title="Server plugins are disabled" color="blue" mb="md">
+          Enable OTS_ENABLE_PLUGINS in the server configuration and restart OpenTAKServer to manage
+          extensions.
+        </Alert>
+      )}
+      <Group mb="md">
+        <Button
+          disabled={!pluginsEnabled || !pluginRepo || installedPlugins === null}
+          loading={catalogLoading}
+          onClick={getAvailablePlugins}
+        >
+          {catalogError
+            ? 'Retry Plugin Catalog'
+            : catalogLoaded
+              ? 'Refresh Plugin Catalog'
+              : 'Browse Available Plugins'}
+        </Button>
+        <Button disabled={!pluginsEnabled} onClick={() => setShowUploadModal(true)}>
+          Upload Plugin
+        </Button>
+      </Group>
+      {catalogError && (
+        <Alert title="Plugin catalog unavailable" color="yellow" mb="md">
+          {catalogError}
+        </Alert>
+      )}
+      {catalogLoaded && !catalogError && availablePlugins.length === 0 && (
+        <Text mb="md">No plugins are available in the configured repository.</Text>
+      )}
       <Modal
         title="Upload Plugin"
         w="50vw"

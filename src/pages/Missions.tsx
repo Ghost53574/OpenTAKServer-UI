@@ -29,6 +29,7 @@ import { t } from 'i18next';
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import sortBy from 'lodash.sortby';
 import { useAuth } from '../auth/AuthContext';
+import { getEudChoices } from '../eudChoices';
 
 interface MissionProperties {
   name: string;
@@ -291,17 +292,8 @@ export default function Missions() {
   }
 
   function get_euds() {
-    axios
-      .get(apiRoutes.eud, { params: { all: true } })
-      .then((r) => {
-        if (r.status === 200) {
-          const all_callsigns: ComboboxItem[] = [];
-          r.data.map((row: any) => {
-            all_callsigns.push({ value: row.uid, label: row.callsign });
-          });
-          setCallsigns(all_callsigns);
-        }
-      })
+    getEudChoices()
+      .then(setCallsigns)
       .catch((error) => {
         notifications.show({
           title: t('Error'),

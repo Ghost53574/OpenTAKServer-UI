@@ -56,7 +56,7 @@ async function mockApi(page, { anonymous = false, failed = false } = {}) {
     else if (p === '/api/plugins/test-plugin/ui') data = false;
     else if (p === '/api/scheduler/jobs' || p.endsWith('/all') || p === '/api/takgov/plugins')
       data = [];
-    else if (p === '/api/eud' && url.searchParams.get('all') === 'true') data = [];
+    else if (p === '/api/eud') data = collection;
     else if (p === '/api/users')
       data = { ...collection, results: [user], total: 1, total_pages: 1 };
     else if (p === '/api/tf-setup') data = { response: { tf_primary_method: 'none' } };
@@ -94,6 +94,11 @@ async function assertLoaded(page, path, options) {
   // checking for secondary runtime errors (including undefined .response).
   await page.waitForTimeout(750);
   expect(errors).toEqual([]);
+  if (!options?.failed) {
+    await expect(
+      page.getByText('The request failed. Please try again.', { exact: true })
+    ).toHaveCount(0);
+  }
 }
 
 test('production login initializes vendor chunks', async ({ page }) => {
@@ -170,3 +175,159 @@ test('failed device-profile submission reports the request error, not the click 
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('plugin catalog is explicitly loaded from the configured index without API headers', async ({
+  page,
+}) => {
+  await mockApi(page);
+  let catalogRequests = 0;
+  let upstreamRequests = 0;
+  page.on('request', (request) => {
+    if (request.url().startsWith('https://repo.opentakserver.io/')) upstreamRequests += 1;
+  });
+  await page.route('**/api/plugins/repo', (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        enabled: true,
+        repo_url: 'https://plugins.example.test/custom/prod/',
+      },
+    })
+  );
+  await page.route('**/api/plugins', (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        plugins: [{ name: 'AISStream', distro: 'OTS_AISStream_Plugin', routes: [] }],
+      },
+    })
+  );
+  await page.route('https://plugins.example.test/**', async (route) => {
+    catalogRequests += 1;
+    const headers = await route.request().allHeaders();
+    expect(headers['x-xsrf-token']).toBeUndefined();
+    expect(headers['content-type']).toBeUndefined();
+    expect(headers.cookie).toBeUndefined();
+    expect(headers.authorization).toBeUndefined();
+    if (route.request().url().endsWith('/ots-skyfi-plugin')) {
+      return route.fulfill({
+        json: {
+          result: {
+            '1.0.0': {
+              name: 'SkyFi',
+              summary: 'SkyFi imagery',
+              description: 'Creates data packages from imagery orders.',
+              version: '1.0.0',
+            },
+          },
+        },
+      });
+    }
+    return route.fulfill({
+      json: { result: { projects: ['ots-aisstream-plugin', 'ots-skyfi-plugin'] } },
+    });
+  });
+  await page.goto('/server_plugin_manager');
+  const browse = page.getByRole('button', { name: 'Browse Available Plugins' });
+  await expect(browse).toBeEnabled();
+  expect(catalogRequests).toBe(0);
+  expect(upstreamRequests).toBe(0);
+  await browse.click();
+  await expect(page.getByText('ots-skyfi-plugin', { exact: true })).toBeVisible();
+  await expect(page.getByText('ots-aisstream-plugin', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Refresh Plugin Catalog' }).click();
+  await expect(page.getByText('ots-skyfi-plugin', { exact: true })).toHaveCount(1);
+  await expect(page.getByRole('cell', { name: 'AISStream', exact: true })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Show info for ots-skyfi-plugin' }).click();
+  await expect(
+    page.getByRole('dialog').getByText('Creates data packages from imagery orders.')
+  ).toBeVisible();
+  expect(upstreamRequests).toBe(0);
+});
+
+test('unavailable optional catalog preserves installed plugins and can be retried', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route('**/api/plugins', (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        plugins: [{ name: 'Existing plugin', distro: 'ots_existing', routes: [] }],
+      },
+    })
+  );
+  await page.route('https://repo.opentakserver.io/**', (route) => route.abort('failed'));
+  await page.goto('/server_plugin_manager');
+  await page.getByRole('button', { name: 'Browse Available Plugins' }).click();
+  await expect(page.getByText('Plugin catalog unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Existing plugin', exact: true })).toBeVisible();
+  await page.route('https://repo.opentakserver.io/**', (route) =>
+    route.fulfill({ json: { result: { projects: [] } } })
+  );
+  await page.getByRole('button', { name: 'Retry Plugin Catalog' }).click();
+  await expect(page.getByText('Plugin catalog unavailable', { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText('No plugins are available in the configured repository.')
+  ).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Existing plugin', exact: true })).toBeVisible();
+});
+
+test('disabled server plugins show their configuration state without index requests', async ({
+  page,
+}) => {
+  await mockApi(page);
+  let requests = 0;
+  await page.route('https://repo.opentakserver.io/**', (route) => {
+    requests += 1;
+    return route.abort();
+  });
+  await page.route('**/api/plugins/repo', (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        enabled: false,
+        repo_url: 'https://repo.opentakserver.io/brian/prod/',
+      },
+    })
+  );
+  await page.goto('/server_plugin_manager');
+  await expect(page.getByText('Server plugins are disabled', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Browse Available Plugins' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Upload Plugin', exact: true })).toBeDisabled();
+  expect(requests).toBe(0);
+});
+
+for (const [path, button, label] of [
+  ['/device_profiles', 'Add Device Profile', 'Callsign'],
+  ['/missions', 'New Mission', 'Creator'],
+]) {
+  test(`device selector on ${path} includes subsequent pages and unnamed devices`, async ({
+    page,
+  }) => {
+    await mockApi(page);
+    await page.route('**/api/eud?*', (route) => {
+      const pageNumber = new URL(route.request().url()).searchParams.get('page');
+      return route.fulfill({
+        json: {
+          ...collection,
+          total: 2,
+          total_pages: 2,
+          results:
+            pageNumber === '2'
+              ? [{ uid: 'second-page-device', callsign: null }]
+              : [{ uid: 'one', callsign: 'First Page Device' }],
+        },
+      });
+    });
+    await page.goto(path);
+    await page.getByRole('button', { name: button, exact: true }).click();
+    const select = page.getByRole('dialog').getByLabel(new RegExp(`^${label}`));
+    await select.fill('second-page-device');
+    await page.getByRole('option', { name: 'second-page-device', exact: true }).click();
+    await expect(select).toHaveValue('second-page-device');
+    await expect(
+      page.getByText('The request failed. Please try again.', { exact: true })
+    ).toHaveCount(0);
+  });
+}
