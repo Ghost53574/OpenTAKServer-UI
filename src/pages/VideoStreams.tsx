@@ -10,6 +10,7 @@ import {
   Tooltip,
   Image,
   LoadingOverlay,
+  Stack,
 } from '@mantine/core';
 import React, { useEffect, useState } from 'react';
 import { IconCheck, IconCircleMinus, IconPlus, IconVideo, IconX } from '@tabler/icons-react';
@@ -410,24 +411,28 @@ export default function VideoStreams() {
         <Image src={thumbnail} />
       </Modal>
 
-      <AspectRatio ratio={16 / 9} display={showVideo ? 'block' : 'none'} h="100%" mb="xl" mt="md">
-        <iframe
-          src={videoUrl}
-          title={path}
-          style={{ border: 0 }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-        <Button
-          fullWidth
-          onClick={() => {
-            setShowVideo(false);
-            setVideoUrl('');
-          }}
-        >
-          {t('Close Stream')}
-        </Button>
-      </AspectRatio>
+      {showVideo && videoUrl && (
+        <Stack mb="xl" mt="md">
+          <AspectRatio ratio={16 / 9}>
+            <iframe
+              src={videoUrl}
+              title={path}
+              style={{ border: 0 }}
+              allow="autoplay; picture-in-picture"
+              allowFullScreen
+            />
+          </AspectRatio>
+          <Button
+            fullWidth
+            onClick={() => {
+              setShowVideo(false);
+              setVideoUrl('');
+            }}
+          >
+            {t('Close Stream')}
+          </Button>
+        </Stack>
+      )}
     </>
   );
 }

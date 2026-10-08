@@ -331,3 +331,52 @@ for (const [path, button, label] of [
     ).toHaveCount(0);
   });
 }
+
+test('video playback creates its frame on Watch and removes it on Close Stream', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route('**/api/video_streams?*', (route) =>
+    route.fulfill({
+      json: {
+        ...collection,
+        total: 1,
+        total_pages: 1,
+        results: [
+          {
+            path: 'review-stream',
+            username: 'operator',
+            source: 'publisher',
+            ready: true,
+            record: false,
+            rtsp_link: 'rtsp://stream.example.test/review-stream',
+            hls_link: 'https://stream.example.test/review-stream/',
+            webrtc_link: 'https://stream.example.test/review-stream/',
+          },
+        ],
+      },
+    })
+  );
+  let playbackRequests = 0;
+  await page.route('https://stream.example.test/**', (route) => {
+    playbackRequests += 1;
+    expect(new URL(route.request().url()).searchParams.get('jwt')).toBe('test-token');
+    return route.fulfill({ contentType: 'text/html', body: '<p>Test stream player</p>' });
+  });
+  await page.goto('/video_streams');
+  await expect(page.getByRole('button', { name: 'Watch', exact: true })).toBeVisible();
+  await expect(page.locator('iframe')).toHaveCount(0);
+  expect(playbackRequests).toBe(0);
+  await page.getByRole('button', { name: 'Watch', exact: true }).click();
+  await expect(page.locator('iframe')).toHaveCount(1);
+  await expect(page.frameLocator('iframe').getByText('Test stream player')).toBeVisible();
+  const playerBounds = await page.locator('iframe').boundingBox();
+  const closeBounds = await page
+    .getByRole('button', { name: 'Close Stream', exact: true })
+    .boundingBox();
+  expect(closeBounds.y).toBeGreaterThanOrEqual(playerBounds.y + playerBounds.height);
+  await page.getByRole('button', { name: 'Close Stream', exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: 'Close Stream', exact: true })).toBeInViewport();
+  await page.getByRole('button', { name: 'Close Stream', exact: true }).click();
+  await expect(page.locator('iframe')).toHaveCount(0);
+});

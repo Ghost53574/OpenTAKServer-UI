@@ -400,9 +400,7 @@ export default function Missions() {
     axios
       .get(apiRoutes.allGroups)
       .then((r) => {
-        console.log(r);
         if (r.status === 200) {
-          ''.toLowerCase();
           const all_groups: ComboboxItem[] = [];
           r.data.map((row: any) => {
             all_groups.push({ value: '' + row.id, label: row.name });
